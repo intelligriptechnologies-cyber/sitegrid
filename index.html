@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SITEGRID — Workforce &amp; Site Command Demo</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 fill=%22%23061012%22/><path d=%22M20 70 L50 20 L80 70 Z%22 fill=%22none%22 stroke=%22%2300e6c3%22 stroke-width=%228%22/></svg>">
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<div id="app">
+
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <span class="brand-mark">◈</span>
+      <span class="brand-text">SITEGRID</span>
+    </div>
+    <nav class="nav" id="nav"></nav>
+    <div class="sidebar-foot">
+      <div class="foot-line">DEMO BUILD 01</div>
+      <div class="foot-line dim">Pure client-side dataset</div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <button class="menu-toggle" id="menuToggle" aria-label="Toggle navigation">☰</button>
+      <div class="topbar-title" id="pageTitle">Dashboard</div>
+      <div class="role-switch">
+        <label for="roleSelect">VIEW AS</label>
+        <select id="roleSelect"></select>
+      </div>
+    </header>
+
+    <main class="content" id="content"></main>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
