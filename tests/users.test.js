@@ -65,4 +65,43 @@ test("role: roleMatches searches name, level and permission labels", () => {
   assert.strictEqual(m("zzz"), false);
   assert.strictEqual(m(""), true);
 });
+test("mobile: pasted +91 / 0-prefixed formats normalise", () => {
+  const n = (x) => get(`normalizeUserMobile(${v(x)})`);
+  assert.strictEqual(n("+91 98765 00002"), "9876500002");
+  assert.strictEqual(n("098765 00002"), "9876500002");
+  assert.strictEqual(n(" 98765-00002 "), "9876500002");
+  assert.deepStrictEqual(run({ ...ok, mobile: "+91 90000 00001" }), {});
+  assert.ok(run({ ...ok, mobile: "+91 900" }).mobile);
+});
+test("email: optional, simple format check", () => {
+  assert.deepStrictEqual(run({ ...ok, email: "" }), {});
+  assert.deepStrictEqual(run({ ...ok, email: "a@b.co" }), {});
+  assert.ok(run({ ...ok, email: "not-an-email" }).email);
+  assert.ok(run({ ...ok, email: "a b@c.d" }).email);
+});
+const lock = (values, editing, cur) => get(`userSelfLockout(${v(values)}, ${editing}, ${cur})`);
+test("self-lockout: only when editing the signed-in user", () => {
+  assert.strictEqual(lock({ roleId: 4 }, 7, 0), null);              // editing someone else
+  assert.strictEqual(lock({ roleId: 4 }, null, 0), null);           // new user
+  assert.strictEqual(lock({ roleId: "0" }, 0, 0), null);            // Super Admin keeps access
+  assert.strictEqual(lock({ roleId: 4 }, 0, 0), "You would lock yourself out");   // level 3
+  assert.strictEqual(lock({ roleId: 2 }, 0, 0), "You would lock yourself out");   // level 2
+  assert.strictEqual(lock({ roleId: "" }, 0, 0), "You would lock yourself out");   // no role
+});
+test("self-lockout: role without addEditUsers or inactive is refused", () => {
+  const r = get(`(ROLES.push({ id: 90, name: "L1 noperm", level: 1, perms: [], active: true }),
+    ROLES.push({ id: 91, name: "L1 off", level: 1, perms: ["addEditUsers"], active: false }),
+    [userSelfLockout({ roleId: 90 }, 0, 0), userSelfLockout({ roleId: 91 }, 0, 0)])`);
+  assert.deepStrictEqual([...r], ["You would lock yourself out", "You would lock yourself out"]);
+  get("ROLES.splice(ROLES.length - 2, 2)");
+});
+test("role level change: lists active admins that would lose sign-in", () => {
+  const r = JSON.parse(get(`(ROLES.push({ id: 95, name: "Tmp", level: 1, perms: [], active: true }),
+    USERS.push({ id: 900, name: "NoDept <b>", mobile: "9111111111", roleId: 95, departmentIds: [], siteIds: [], active: true }),
+    USERS.push({ id: 901, name: "HasDept", mobile: "9111111112", roleId: 95, departmentIds: [1], siteIds: [], active: true }),
+    USERS.push({ id: 902, name: "Inactive", mobile: "9111111113", roleId: 95, departmentIds: [], siteIds: [], active: false }),
+    JSON.stringify([roleLevelLockouts(ROLES.find((x) => x.id === 95), 2), roleLevelLockouts(ROLES.find((x) => x.id === 95), 1)]))`));
+  assert.deepStrictEqual(r, [["NoDept <b>"], []]);
+  get("USERS.splice(USERS.length - 3, 3); ROLES.splice(ROLES.length - 1, 1)");
+});
 console.log(`${passed} passed`);

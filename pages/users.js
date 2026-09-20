@@ -3,18 +3,49 @@
 
 const USER_DEPT_MSG = "Select at least one department — otherwise this user cannot sign in";
 
+/* Strip formatting from a pasted mobile: "+91 98765 00002" / "098765 00002" -> "9876500002".
+   Anything that is not a recognisable 10-digit number is returned as bare digits so validation can reject it. */
+function normalizeUserMobile(raw) {
+  let d = String(raw ?? "").replace(/\D/g, "");
+  if (d.length === 12 && d.startsWith("91")) d = d.slice(2);
+  else if (d.length === 11 && d.startsWith("0")) d = d.slice(1);
+  return d;
+}
+
+const EMAIL_RE = /^\S+@\S+\.\S+$/;
+const SELF_LOCKOUT_MSG = "You would lock yourself out";
+
+/* Pure: would saving this user record lock the signed-in admin out of user management?
+   Only applies when editing the signed-in user's own record. Returns a message or null. */
+function userSelfLockout(values, editingId, currentUserId) {
+  if (editingId == null || editingId !== currentUserId) return null;
+  const role = values.roleId === "" || values.roleId == null ? null : ROLES.find((r) => r.id === Number(values.roleId));
+  if (!role || role.active === false || role.level > 1 || !(role.perms || []).includes("addEditUsers")) return SELF_LOCKOUT_MSG;
+  return null;
+}
+
+/* Pure: names of ACTIVE users holding `role` who could sign in today but could not if the role's level became `newLevel`
+   (non-admin levels need at least one active department). */
+function roleLevelLockouts(role, newLevel) {
+  const canWith = (u, level) => level <= 1 || DEPARTMENTS.some((d) => d.active && (u.departmentIds || []).includes(d.id));
+  return USERS.filter((u) => u.active && u.roleId === role.id && canWith(u, role.level) && !canWith(u, newLevel)).map((u) => u.name);
+}
+
 /* Returns { field: message } — empty object means valid. `values` are plain values. */
 function validateUserForm(values, editingId) {
   const errs = {};
   const name = String(values.name ?? "").trim();
   if (!name) errs.name = "Name is required";
 
-  const mobile = String(values.mobile ?? "").trim();
+  const mobile = normalizeUserMobile(values.mobile);
   if (!/^\d{10}$/.test(mobile)) errs.mobile = "Mobile must be exactly 10 digits";
   else {
     const other = USERS.find((u) => u.mobile === mobile && u.id !== editingId);
     if (other) errs.mobile = `Mobile number already registered to ${other.name}`;
   }
+
+  const email = String(values.email ?? "").trim();
+  if (email && !EMAIL_RE.test(email)) errs.email = "Enter a valid email address";
 
   const rid = values.roleId;
   const role = rid === "" || rid == null ? null : ROLES.find((r) => r.id === Number(rid));
@@ -208,6 +239,10 @@ function openRoleForm(id) {
           const n = USERS.filter((u) => u.roleId === editing.id && u.active).length;
           if (n) return `Can't deactivate ${editing.name}: held by ${n} active user${n === 1 ? "" : "s"}`;
         }
+        if (level !== editing.level) {
+          const hit = roleLevelLockouts(editing, level);
+          if (hit.length) return `Assign departments to: ${hit.join(", ")} first`;
+        }
         Object.assign(editing, { name: vals.name, level, perms: vals.perms, active: vals.active });
         logUserAudit("Role Updated", `${vals.name} updated`);
         showToast(`${esc(vals.name)} updated`);
@@ -248,6 +283,7 @@ function logUserAudit(action, details) {
 function toggleUserActive(id, checked) {
   const u = byId(USERS, id);
   if (!u) return;
+  if (!can("addEditUsers")) { showToast("You don't have permission to manage users"); render(); return; }
   if (!checked && id === state.currentUserId) {
     showToast("You can't deactivate your own account");
     render();
@@ -262,6 +298,7 @@ function toggleUserActive(id, checked) {
 function deleteUser(id) {
   const u = byId(USERS, id);
   if (!u) return;
+  if (!can("addEditUsers")) { showToast("You don't have permission to manage users"); return; }
   if (id === state.currentUserId) { showToast("You can't delete your own account"); return; }
   const dept = DEPARTMENTS.find((d) => d.headUserId === id);
   if (dept) { showToast(`Can't delete ${esc(u.name)}: head of ${esc(dept.name)}`); return; }
@@ -288,10 +325,10 @@ function openUserForm(id) {
     values: editing ? { ...editing, roleId: String(editing.roleId) } : { active: true, departmentIds: [], siteIds: [] },
     fields: [
       { name: "name", label: "Name", type: "text", required: true },
-      { name: "mobile", label: "Mobile", type: "tel", required: true, maxlength: 10, placeholder: "10-digit number",
+      { name: "mobile", label: "Mobile", type: "tel", required: true, maxlength: 16, placeholder: "10-digit number", normalize: normalizeUserMobile,
         hint: editing ? "Login uses this number + OTP. Changes apply at the next sign-in." : undefined,
         validate: (v) => validateUserForm({ name: "x", mobile: v, roleId: 0 }, editing ? editing.id : null).mobile },
-      { name: "email", label: "Email", type: "email" },
+      { name: "email", label: "Email", type: "email", validate: (v) => (EMAIL_RE.test(v) ? null : "Enter a valid email address") },
       { name: "designation", label: "Designation", type: "text" },
       { name: "roleId", label: "Role", type: "select", required: true, options: activeRoles.map((r) => ({ value: r.id, label: r.name })) },
       { name: "departmentIds", label: "Departments", type: "multicheck", options: DEPARTMENTS.filter((d) => d.active || (editing && (editing.departmentIds || []).includes(d.id))).map((d) => ({ value: d.id, label: d.name })) },
@@ -302,12 +339,14 @@ function openUserForm(id) {
       const level = roleLevelOf(vals.roleId);
       const depts = level != null && level <= 1 ? [] : vals.departmentIds;
       const errs = validateUserForm({ ...vals, departmentIds: depts }, editing ? editing.id : null);
-      const first = errs.name || errs.mobile || errs.roleId || errs.departmentIds;
+      const first = errs.name || errs.mobile || errs.email || errs.roleId || errs.departmentIds;
       if (first) return first;
       if (editing && editing.id === state.currentUserId && !vals.active) return "You can't deactivate your own account";
+      const lock = userSelfLockout(vals, editing ? editing.id : null, state.currentUserId);
+      if (lock) return lock;
       // keep only sites that belong to the chosen departments (when any chosen)
       const sites = depts.length ? vals.siteIds.filter((sid) => { const s = byId(SITES, sid); return s && depts.includes(s.departmentId); }) : vals.siteIds;
-      const rec = { name: vals.name, mobile: vals.mobile, email: vals.email, designation: vals.designation,
+      const rec = { name: vals.name, mobile: normalizeUserMobile(vals.mobile), email: vals.email, designation: vals.designation,
                     roleId: Number(vals.roleId), departmentIds: depts, siteIds: sites, active: vals.active };
       if (editing) {
         Object.assign(editing, rec);
@@ -333,7 +372,13 @@ function wireUserFormDynamics() {
   const deptBox = fm.querySelector('input[name="departmentIds"]');
   const deptField = deptBox && deptBox.closest(".field");
   const siteBoxes = [...fm.querySelectorAll('input[name="siteIds"]')];
+  const siteBox = siteBoxes[0] && siteBoxes[0].closest(".multicheck");
+  const note = document.createElement("div");
+  note.className = "field-hint site-note";
+  note.hidden = true;
+  if (siteBox) siteBox.after(note);
   const apply = () => {
+    let removed = 0;
     const r = roleSel.value === "" ? null : byId(ROLES, Number(roleSel.value));
     if (deptField) deptField.hidden = !!r && r.level <= 1;
     const chosen = [...fm.querySelectorAll('input[name="departmentIds"]:checked')].map((x) => Number(x.value));
@@ -342,8 +387,10 @@ function wireUserFormDynamics() {
       const s = byId(SITES, Number(cb.value));
       const show = !useDepts || (s && chosen.includes(s.departmentId));
       cb.closest(".multicheck-item").hidden = !show;
-      if (!show) cb.checked = false;
+      if (!show) { if (cb.checked) removed++; cb.checked = false; }
     }
+    if (removed) { note.textContent = `${removed} site${removed === 1 ? "" : "s"} removed — not in the selected departments`; note.hidden = false; }
+    else note.hidden = true;
   };
   fm.addEventListener("change", (ev) => { if (ev.target === roleSel || ev.target.name === "departmentIds") apply(); });
   apply();

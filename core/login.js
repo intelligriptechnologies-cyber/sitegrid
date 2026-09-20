@@ -1,4 +1,9 @@
 /* Login screen: pick user -> mobile prefilled (editable) -> OTP. */
+/* Option label markup text for the user picker; user and role names are admin-typed, so both are escaped. */
+function loginOptionLabel(u) {
+  return `${UI.esc(u.name)} — ${UI.esc(roleName(u.roleId))}${u.active ? "" : " (Inactive)"}`;
+}
+
 function showLogin(onSuccess) {
   const root = document.getElementById("login");
   document.getElementById("app").hidden = true;
@@ -9,7 +14,7 @@ function showLogin(onSuccess) {
       <div class="login-sub">Sign in with your registered mobile number</div>
       <label class="login-label" for="loginUser">Select user (demo)</label>
       <select id="loginUser">${USERS.map((u) =>
-        `<option value="${u.id}">${esc(u.name)} — ${roleName(u.roleId)}${u.active ? "" : " (Inactive)"}</option>`).join("")}</select>
+        `<option value="${u.id}">${loginOptionLabel(u)}</option>`).join("")}</select>
       <label class="login-label" for="loginMobile">Mobile number</label>
       <input id="loginMobile" type="tel" inputmode="numeric" maxlength="16" autocomplete="off" />
       <div id="otpBlock" hidden>

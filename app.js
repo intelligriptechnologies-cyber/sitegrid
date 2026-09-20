@@ -119,18 +119,25 @@ function warnStorage(ok) {
   showToast("Storage unavailable — changes are session-only");
 }
 
-function showToast(msg) {
+function showToast(msg, asText) {
   const t = document.getElementById("toast");
-  t.innerHTML = `<span class="toast-dot"></span><span>${msg}</span>`;
+  t.innerHTML = `<span class="toast-dot"></span><span></span>`;
+  const span = t.lastElementChild;
+  if (asText) span.textContent = msg; else span.innerHTML = msg;
   t.classList.add("show");
   clearTimeout(showToast._timer);
   showToast._timer = setTimeout(() => t.classList.remove("show"), 2600);
 }
 
+/* Plain-text toast: msg is shown via textContent, never parsed as HTML. */
+function showToastText(msg) {
+  showToast(msg, true);
+}
+
 function accessDenied(action) {
   return `<div class="access-denied">
     <div class="code">ACCESS RESTRICTED</div>
-    <div>${currentRole().name} does not have permission to ${action}.</div>
+    <div>${esc(currentRole().name)} does not have permission to ${action}.</div>
   </div>`;
 }
 
@@ -159,7 +166,7 @@ function pageDashboard() {
       <div>
         <div class="page-eyebrow">// COMMAND OVERVIEW</div>
         <div class="page-heading">Dashboard</div>
-        <div class="page-sub">Signed in as ${currentUser().name} · ${currentRole().name}${state.deptId != null ? " · " + deptName(state.deptId) : ""}</div>
+        <div class="page-sub">Signed in as ${esc(currentUser().name)} · ${esc(currentRole().name)}${state.deptId != null ? " · " + esc(deptName(state.deptId)) : ""}</div>
       </div>
     </div>
 
@@ -183,7 +190,7 @@ function pageDashboard() {
           <tbody>
             ${deptSummary.map((r) => `<tr>
               <td>${esc(r.d.name)}</td>
-              <td>${userName(r.d.headUserId)}</td>
+              <td>${esc(userName(r.d.headUserId))}</td>
               <td>${r.siteCount}</td>
               <td>${r.labourCount}</td>
             </tr>`).join("")}
@@ -199,8 +206,8 @@ function pageDashboard() {
           <thead><tr><th>Timestamp</th><th>User</th><th>Action</th><th>Details</th></tr></thead>
           <tbody>
             ${AUDIT_LOG.slice().reverse().slice(0, 5).map((a) => `<tr>
-              <td class="text-mono">${a.timestamp}</td>
-              <td>${userName(a.userId)}</td>
+              <td class="text-mono">${esc(a.timestamp)}</td>
+              <td>${esc(userName(a.userId))}</td>
               <td><span class="tag neutral">${esc(a.action)}</span></td>
               <td class="dim">${esc(a.details)}</td>
             </tr>`).join("")}
@@ -225,7 +232,7 @@ function pageDepartments() {
       </div>
       <button class="btn teal" ${canEdit ? "" : "disabled"} onclick="showAddDepartmentModal()">+ New Department</button>
     </div>
-    ${!canEdit ? `<div class="section-note">Viewing as ${currentRole().name} — department creation/editing requires Super Admin or Business Owner.</div>` : ""}
+    ${!canEdit ? `<div class="section-note">Viewing as ${esc(currentRole().name)} — department creation/editing requires Super Admin or Business Owner.</div>` : ""}
     <div class="grid cols-3">
       ${/* intentionally lists all departments regardless of the Department dropdown (admin management page) */ DEPARTMENTS.map((d) => {
         const sites = SITES.filter((s) => s.departmentId === d.id);
@@ -239,7 +246,7 @@ function pageDepartments() {
             </div>
           </div>
           <div class="kv-list">
-            <div class="kv-row"><span class="k">Head</span><span class="v">${userName(d.headUserId)}</span></div>
+            <div class="kv-row"><span class="k">Head</span><span class="v">${esc(userName(d.headUserId))}</span></div>
             <div class="kv-row"><span class="k">Sites</span><span class="v">${sites.length}</span></div>
             <div class="kv-row"><span class="k">Manpower</span><span class="v">${labour.length}</span></div>
             <div class="kv-row"><span class="k">Staff</span><span class="v">${users.length}</span></div>
@@ -255,7 +262,7 @@ function showAddDepartmentModal() {
     <form id="deptForm" class="form-grid">
       <div class="field full"><label>Department Name</label><input required name="name" placeholder="e.g. Interior Finishing" /></div>
       <div class="field full"><label>Department Head</label>
-        <select name="head">${USERS.filter((u) => Auth.roleLevel(u) <= 2 && u.active).map((u) => `<option value="${u.id}">${u.name}</option>`).join("")}</select>
+        <select name="head">${USERS.filter((u) => Auth.roleLevel(u) <= 2 && u.active).map((u) => `<option value="${u.id}">${esc(u.name)}</option>`).join("")}</select>
       </div>
       <div class="field full" style="margin-top:4px;">
         <div class="section-note">New department is saved in this browser (localStorage). Use Reset demo data on the login screen to restore the seed.</div>
@@ -269,9 +276,9 @@ function showAddDepartmentModal() {
   document.getElementById("deptForm").onsubmit = (e) => {
     e.preventDefault();
     const f = new FormData(e.target);
-    const id = Math.max(...DEPARTMENTS.map((d) => d.id)) + 1;
+    const id = Store.nextId(DEPARTMENTS);
     DEPARTMENTS.push({ id, name: f.get("name"), headUserId: Number(f.get("head")), active: true });
-    AUDIT_LOG.push({ id: AUDIT_LOG.length + 1, timestamp: nowStamp(), userId: state.currentUserId, action: "Department Added", details: `${f.get("name")} created` });
+    AUDIT_LOG.push({ id: Store.nextId(AUDIT_LOG), timestamp: nowStamp(), userId: state.currentUserId, action: "Department Added", details: `${f.get("name")} created` });
     closeModal();
     showToast("Department created");
     render();
@@ -298,21 +305,21 @@ function pageSites() {
       ${visible.map((s) => `<div class="site-card">
         <div class="site-card-head">
           <div>
-            <div class="site-name">${s.name}</div>
-            <div class="site-meta">${deptName(s.departmentId)} · ${s.projectType}</div>
+            <div class="site-name">${esc(s.name)}</div>
+            <div class="site-meta">${esc(deptName(s.departmentId))} · ${esc(s.projectType)}</div>
           </div>
-          <span class="tag ${statusTag(s.status)}">${s.status}</span>
+          <span class="tag ${statusTag(s.status)}">${esc(s.status)}</span>
         </div>
-        <div class="site-meta">${s.description}</div>
+        <div class="site-meta">${esc(s.description)}</div>
         <div class="gps-chip">GPS ${s.lat.toFixed(4)}, ${s.lng.toFixed(4)}</div>
         <div class="kv-list">
           <div class="kv-row"><span class="k">Area</span><span class="v">${s.areaSqft.toLocaleString("en-IN")} sqft</span></div>
-          <div class="kv-row"><span class="k">Client</span><span class="v">${clientName(s.clientId)}</span></div>
-          <div class="kv-row"><span class="k">Address</span><span class="v">${s.address}</span></div>
-          <div class="kv-row"><span class="k">Timeline</span><span class="v">${s.startDate} → ${s.endDate}</span></div>
-          <div class="kv-row"><span class="k">PM / PE</span><span class="v">${userName(s.pmUserId)} / ${userName(s.peUserId)}</span></div>
+          <div class="kv-row"><span class="k">Client</span><span class="v">${esc(clientName(s.clientId))}</span></div>
+          <div class="kv-row"><span class="k">Address</span><span class="v">${esc(s.address)}</span></div>
+          <div class="kv-row"><span class="k">Timeline</span><span class="v">${esc(s.startDate)} → ${esc(s.endDate)}</span></div>
+          <div class="kv-row"><span class="k">PM / PE</span><span class="v">${esc(userName(s.pmUserId))} / ${esc(userName(s.peUserId))}</span></div>
         </div>
-        ${s.notes ? `<div class="section-note">${s.notes}</div>` : ""}
+        ${s.notes ? `<div class="section-note">${esc(s.notes)}</div>` : ""}
       </div>`).join("")}
     </div>
   `;
@@ -325,7 +332,7 @@ function showAddSiteModal() {
       <div class="field"><label>Department</label><select name="dept">${DEPARTMENTS.map((d) => `<option value="${d.id}">${esc(d.name)}</option>`).join("")}</select></div>
       <div class="field"><label>Project Type</label><select name="type"><option>Residential</option><option>Commercial</option></select></div>
       <div class="field"><label>Area (sqft)</label><input required type="number" name="area" placeholder="30000" /></div>
-      <div class="field"><label>Client</label><select name="client">${CLIENTS.map((c) => `<option value="${c.id}">${c.name}</option>`).join("")}</select></div>
+      <div class="field"><label>Client</label><select name="client">${CLIENTS.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join("")}</select></div>
       <div class="field"><label>GPS Latitude</label><input required type="number" step="0.0001" name="lat" placeholder="20.3477" /></div>
       <div class="field"><label>GPS Longitude</label><input required type="number" step="0.0001" name="lng" placeholder="85.8245" /></div>
       <div class="field full"><label>Address</label><input required name="address" placeholder="Site address" /></div>
@@ -338,14 +345,14 @@ function showAddSiteModal() {
   document.getElementById("siteForm").onsubmit = (e) => {
     e.preventDefault();
     const f = new FormData(e.target);
-    const id = Math.max(...SITES.map((s) => s.id)) + 1;
+    const id = Store.nextId(SITES);
     SITES.push({
       id, name: f.get("name"), description: "New site — details pending", departmentId: Number(f.get("dept")),
       projectType: f.get("type"), areaSqft: Number(f.get("area")), address: f.get("address"),
       lat: Number(f.get("lat")), lng: Number(f.get("lng")), clientId: Number(f.get("client")),
       startDate: "2026-09-16", endDate: "", status: "Active", pmUserId: state.currentUserId, peUserId: state.currentUserId, notes: "",
     });
-    AUDIT_LOG.push({ id: AUDIT_LOG.length + 1, timestamp: nowStamp(), userId: state.currentUserId, action: "Site Created", details: `${f.get("name")} created` });
+    AUDIT_LOG.push({ id: Store.nextId(AUDIT_LOG), timestamp: nowStamp(), userId: state.currentUserId, action: "Site Created", details: `${f.get("name")} created` });
     closeModal();
     showToast("Site created");
     render();
@@ -376,15 +383,15 @@ function pageManpower() {
         <table id="labourTable">
           <thead><tr><th>Name</th><th>Aadhaar</th><th>Phone</th><th>Skill</th><th>Wage Rate</th><th>Site</th><th>Status</th><th>Transfer</th></tr></thead>
           <tbody>
-            ${visible.map((l) => `<tr data-search="${l.name.toLowerCase()} ${l.aadhaar} ${l.phone} ${siteName(l.siteId).toLowerCase()}">
-              <td>${l.name}</td>
-              <td class="text-mono">${l.aadhaar}</td>
-              <td class="text-mono">${l.phone}</td>
-              <td>${l.skill}</td>
+            ${visible.map((l) => `<tr data-search="${esc(`${l.name} ${l.aadhaar} ${l.phone} ${siteName(l.siteId)}`.toLowerCase())}">
+              <td>${esc(l.name)}</td>
+              <td class="text-mono">${esc(l.aadhaar)}</td>
+              <td class="text-mono">${esc(l.phone)}</td>
+              <td>${esc(l.skill)}</td>
               <td>${currency(l.wageRate)}/day</td>
-              <td>${siteName(l.siteId)}</td>
-              <td><span class="tag ${statusTag(l.approvalStatus)}">${l.approvalStatus}</span>${l.rejectionReason ? `<div class="dim" style="font-size:11px;margin-top:4px;max-width:220px;">${l.rejectionReason}</div>` : ""}</td>
-              <td class="dim">${l.transferHistory ? `${siteName(l.transferHistory[0].fromSiteId)} → ${siteName(l.transferHistory[0].toSiteId)} on ${l.transferHistory[0].date}` : "—"}</td>
+              <td>${esc(siteName(l.siteId))}</td>
+              <td><span class="tag ${statusTag(l.approvalStatus)}">${esc(l.approvalStatus)}</span>${l.rejectionReason ? `<div class="dim" style="font-size:11px;margin-top:4px;max-width:220px;">${esc(l.rejectionReason)}</div>` : ""}</td>
+              <td class="dim">${l.transferHistory ? `${esc(siteName(l.transferHistory[0].fromSiteId))} → ${esc(siteName(l.transferHistory[0].toSiteId))} on ${esc(l.transferHistory[0].date)}` : "—"}</td>
             </tr>`).join("")}
           </tbody>
         </table>
@@ -410,7 +417,7 @@ function showAddLabourModal() {
       <div class="field"><label>Skill / Category</label><input required name="skill" placeholder="e.g. Mason" /></div>
       <div class="field"><label>Daily Wage Rate</label><input required type="number" name="rate" placeholder="750" /></div>
       <div class="field full"><label>Assign to Site</label>
-        <select name="site">${(scoped.length ? scoped : SITES.map((s) => s.id)).map((id) => `<option value="${id}">${siteName(id)}</option>`).join("")}</select>
+        <select name="site">${(scoped.length ? scoped : SITES.map((s) => s.id)).map((id) => `<option value="${id}">${esc(siteName(id))}</option>`).join("")}</select>
       </div>
       <div id="labourFormError" class="field-error full" style="display:none;"></div>
       <div class="form-actions" style="grid-column:1/-1;">
@@ -430,14 +437,14 @@ function showAddLabourModal() {
       errEl.textContent = `Duplicate Aadhaar — already registered as ${dup.name} (Labour ID ${dup.id}).`;
       return;
     }
-    const id = Math.max(...LABOUR.map((l) => l.id)) + 1;
+    const id = Store.nextId(LABOUR);
     LABOUR.push({
       id, name: f.get("name"), aadhaar, phone: f.get("phone"), address: "—", biometricRef: "",
       category: "Skilled", skill: f.get("skill"), wageRate: Number(f.get("rate")), siteId: Number(f.get("site")),
       joiningDate: "2026-09-16", active: false, approvalStatus: "Pending",
     });
-    APPROVAL_REQUESTS.push({ id: APPROVAL_REQUESTS.length + 1, labourId: id, requestedBy: state.currentUserId, requestDate: nowStamp(), approvedBy: null, decisionDate: null, status: "Pending" });
-    AUDIT_LOG.push({ id: AUDIT_LOG.length + 1, timestamp: nowStamp(), userId: state.currentUserId, action: "Labour Added", details: `${f.get("name")} submitted for approval` });
+    APPROVAL_REQUESTS.push({ id: Store.nextId(APPROVAL_REQUESTS), labourId: id, requestedBy: state.currentUserId, requestDate: nowStamp(), approvedBy: null, decisionDate: null, status: "Pending" });
+    AUDIT_LOG.push({ id: Store.nextId(AUDIT_LOG), timestamp: nowStamp(), userId: state.currentUserId, action: "Labour Added", details: `${f.get("name")} submitted for approval` });
     closeModal();
     showToast("Labour submitted for approval");
     render();
@@ -458,7 +465,7 @@ function pageApprovals() {
         <div class="page-sub">Approval authority: Super Admin, Business Owner, or Department Head.</div>
       </div>
     </div>
-    ${!canApprove ? `<div class="section-note">Viewing as ${currentRole().name} — approve/reject actions require Level 0-2 access. Table is read-only.</div>` : ""}
+    ${!canApprove ? `<div class="section-note">Viewing as ${esc(currentRole().name)} — approve/reject actions require Level 0-2 access. Table is read-only.</div>` : ""}
     <div class="panel">
       <div class="panel-body flush table-wrap">
         <table>
@@ -468,12 +475,12 @@ function pageApprovals() {
               const l = byId(LABOUR, a.labourId);
               const tag = a.status === "Approved" ? "ok" : a.status === "Pending" ? "warn" : "danger";
               return `<tr>
-                <td>${l.name}<div class="dim" style="font-size:11px;">Aadhaar ${l.aadhaar}</div></td>
-                <td>${siteName(l.siteId)}</td>
-                <td>${userName(a.requestedBy)}</td>
-                <td class="text-mono">${a.requestDate}</td>
-                <td><span class="tag ${tag}">${a.status}</span></td>
-                <td class="dim">${a.decisionDate ? `${userName(a.approvedBy)} · ${a.decisionDate}` : "—"}${a.rejectionReason ? `<div style="margin-top:4px;max-width:220px;">${a.rejectionReason}</div>` : ""}</td>
+                <td>${esc(l.name)}<div class="dim" style="font-size:11px;">Aadhaar ${esc(l.aadhaar)}</div></td>
+                <td>${esc(siteName(l.siteId))}</td>
+                <td>${esc(userName(a.requestedBy))}</td>
+                <td class="text-mono">${esc(a.requestDate)}</td>
+                <td><span class="tag ${tag}">${esc(a.status)}</span></td>
+                <td class="dim">${a.decisionDate ? `${esc(userName(a.approvedBy))} · ${esc(a.decisionDate)}` : "—"}${a.rejectionReason ? `<div style="margin-top:4px;max-width:220px;">${esc(a.rejectionReason)}</div>` : ""}</td>
                 ${canApprove ? `<td>${a.status === "Pending" ? `
                   <div style="display:flex;gap:6px;">
                     <button class="btn teal small" onclick="decideApproval(${a.id}, 'Approved')">Approve</button>
@@ -501,7 +508,7 @@ function decideApproval(reqId, decision) {
   }
   labour.approvalStatus = decision;
   labour.active = decision === "Approved";
-  AUDIT_LOG.push({ id: AUDIT_LOG.length + 1, timestamp: nowStamp(), userId: state.currentUserId, action: `Labour ${decision}`, details: `${labour.name} ${decision.toLowerCase()} by ${currentUser().name}` });
+  AUDIT_LOG.push({ id: Store.nextId(AUDIT_LOG), timestamp: nowStamp(), userId: state.currentUserId, action: `Labour ${decision}`, details: `${labour.name} ${decision.toLowerCase()} by ${currentUser().name}` });
   showToast(`Labour ${decision.toLowerCase()}`);
   render();
 }
@@ -534,14 +541,14 @@ function pageAttendance() {
           <thead><tr><th>Labour</th><th>Site</th><th>Status</th><th>Check-in</th><th>Check-out</th><th>GPS</th><th>Marked By</th><th>Remarks</th></tr></thead>
           <tbody>
             ${rows.length ? rows.map((a) => `<tr>
-              <td>${labourName(a.labourId)}</td>
-              <td>${siteName(a.siteId)}</td>
-              <td><span class="tag ${statusTag(a.status)}">${a.status}</span></td>
-              <td class="text-mono">${a.checkIn || "—"}</td>
-              <td class="text-mono">${a.checkOut || "—"}</td>
+              <td>${esc(labourName(a.labourId))}</td>
+              <td>${esc(siteName(a.siteId))}</td>
+              <td><span class="tag ${statusTag(a.status)}">${esc(a.status)}</span></td>
+              <td class="text-mono">${esc(a.checkIn || "—")}</td>
+              <td class="text-mono">${esc(a.checkOut || "—")}</td>
               <td class="dim">${a.gps ? `${a.gps.lat.toFixed(4)}, ${a.gps.lng.toFixed(4)}` : "not captured"}</td>
-              <td>${userName(a.markedBy)}</td>
-              <td class="dim">${a.remarks || "—"}</td>
+              <td>${esc(userName(a.markedBy))}</td>
+              <td class="dim">${esc(a.remarks || "—")}</td>
             </tr>`).join("") : `<tr><td colspan="8" class="empty-note">No attendance marked for this date within your visibility scope.</td></tr>`}
           </tbody>
         </table>
@@ -558,12 +565,12 @@ function showMarkAttendanceModal() {
   openModal("Mark Attendance", `
     <form id="attForm" class="form-grid">
       <div class="field"><label>Date</label><input required type="date" name="date" value="2026-09-16" /></div>
-      <div class="field"><label>Site</label><select name="site" id="attSiteSelect">${siteOptions.map((id) => `<option value="${id}">${siteName(id)}</option>`).join("")}</select></div>
+      <div class="field"><label>Site</label><select name="site" id="attSiteSelect">${siteOptions.map((id) => `<option value="${id}">${esc(siteName(id))}</option>`).join("")}</select></div>
       <div class="field full"><label>Labour</label><select name="labour" id="attLabourSelect"></select></div>
       <div class="field"><label>Status</label>
         <select name="status"><option>Present</option><option>Absent</option><option>Half Day</option><option>Leave</option></select>
       </div>
-      <div class="field"><label>Marked By</label><input disabled value="${currentUser().name}" /></div>
+      <div class="field"><label>Marked By</label><input disabled value="${esc(currentUser().name)}" /></div>
       <div class="field"><label>Check-in</label><input type="time" name="checkIn" /></div>
       <div class="field"><label>Check-out</label><input type="time" name="checkOut" /></div>
       <div class="field full"><label>Remarks (optional)</label><input name="remarks" placeholder="e.g. left early" /></div>
@@ -579,7 +586,7 @@ function showMarkAttendanceModal() {
   function refreshLabourOptions() {
     const sid = Number(siteSel.value);
     const opts = LABOUR.filter((l) => l.siteId === sid && l.approvalStatus === "Approved");
-    labourSel.innerHTML = opts.map((l) => `<option value="${l.id}">${l.name}</option>`).join("") || `<option value="">No approved labour at this site</option>`;
+    labourSel.innerHTML = opts.map((l) => `<option value="${l.id}">${esc(l.name)}</option>`).join("") || `<option value="">No approved labour at this site</option>`;
   }
   siteSel.onchange = refreshLabourOptions;
   refreshLabourOptions();
@@ -595,10 +602,10 @@ function showMarkAttendanceModal() {
       return;
     }
     ATTENDANCE.push({
-      id: ATTENDANCE.length + 1, date, siteId, labourId, status: f.get("status"),
+      id: Store.nextId(ATTENDANCE), date, siteId, labourId, status: f.get("status"),
       checkIn: f.get("checkIn"), checkOut: f.get("checkOut"), markedBy: state.currentUserId, gps: null, remarks: f.get("remarks") || "",
     });
-    AUDIT_LOG.push({ id: AUDIT_LOG.length + 1, timestamp: nowStamp(), userId: state.currentUserId, action: "Attendance Marked", details: `${labourName(labourId)} marked ${f.get("status")} at ${siteName(siteId)} on ${date}` });
+    AUDIT_LOG.push({ id: Store.nextId(AUDIT_LOG), timestamp: nowStamp(), userId: state.currentUserId, action: "Attendance Marked", details: `${labourName(labourId)} marked ${f.get("status")} at ${siteName(siteId)} on ${date}` });
     state.attendanceDate = date;
     closeModal();
     showToast("Attendance saved");
@@ -628,15 +635,15 @@ function pageWages() {
           <thead><tr><th>Labour</th><th>Site</th><th>Rate/Day</th><th>Present</th><th>Half Days</th><th>Payable</th><th>Advance</th><th>Balance</th><th>Status</th>${canUpdate ? "<th>Action</th>" : ""}</tr></thead>
           <tbody>
             ${rows.map((w) => `<tr>
-              <td>${labourName(w.labourId)}</td>
-              <td>${siteName(w.siteId)}</td>
+              <td>${esc(labourName(w.labourId))}</td>
+              <td>${esc(siteName(w.siteId))}</td>
               <td>${currency(w.wageRate)}</td>
               <td>${w.daysPresent}</td>
               <td>${w.halfDays}</td>
               <td>${currency(w.totalPayable)}</td>
               <td>${currency(w.advancePaid)}</td>
               <td class="text-mono">${currency(w.balancePayable)}</td>
-              <td><span class="tag ${statusTag(w.status)}">${w.status}</span></td>
+              <td><span class="tag ${statusTag(w.status)}">${esc(w.status)}</span></td>
               ${canUpdate ? `<td>${w.status !== "Paid" ? `<button class="btn teal small" onclick="markWagePaid(${w.id})">Mark Paid</button>` : `<span class="faint text-mono">Settled</span>`}</td>` : ""}
             </tr>`).join("")}
           </tbody>
@@ -653,7 +660,7 @@ function markWagePaid(id) {
   w.balancePayable = 0;
   w.paymentDate = "2026-09-16";
   w.paidBy = state.currentUserId;
-  AUDIT_LOG.push({ id: AUDIT_LOG.length + 1, timestamp: nowStamp(), userId: state.currentUserId, action: "Wage Payment Updated", details: `${labourName(w.labourId)} marked Paid` });
+  AUDIT_LOG.push({ id: Store.nextId(AUDIT_LOG), timestamp: nowStamp(), userId: state.currentUserId, action: "Wage Payment Updated", details: `${labourName(w.labourId)} marked Paid` });
   showToast("Wage marked as paid");
   render();
 }
@@ -680,13 +687,13 @@ function pageExpenses() {
           <thead><tr><th>Date</th><th>Site</th><th>Category</th><th>Amount</th><th>Paid By</th><th>Description</th><th>Approval</th></tr></thead>
           <tbody>
             ${rows.map((e) => `<tr>
-              <td class="text-mono">${e.date}</td>
-              <td>${siteName(e.siteId)}</td>
-              <td><span class="tag neutral">${e.category}</span></td>
+              <td class="text-mono">${esc(e.date)}</td>
+              <td>${esc(siteName(e.siteId))}</td>
+              <td><span class="tag neutral">${esc(e.category)}</span></td>
               <td>${currency(e.amount)}</td>
-              <td>${userName(e.paidBy)}</td>
-              <td class="dim">${e.description}</td>
-              <td>${e.approvedBy ? `<span class="tag ok">Approved · ${userName(e.approvedBy)}</span>` : `<span class="tag warn">Pending Review</span>`}</td>
+              <td>${esc(userName(e.paidBy))}</td>
+              <td class="dim">${esc(e.description)}</td>
+              <td>${e.approvedBy ? `<span class="tag ok">Approved · ${esc(userName(e.approvedBy))}</span>` : `<span class="tag warn">Pending Review</span>`}</td>
             </tr>`).join("")}
           </tbody>
         </table>
@@ -701,7 +708,7 @@ function showAddExpenseModal() {
   openModal("Add Petty Expense", `
     <form id="expForm" class="form-grid">
       <div class="field"><label>Date</label><input required type="date" name="date" value="2026-09-16" /></div>
-      <div class="field"><label>Site</label><select name="site">${siteOptions.map((id) => `<option value="${id}">${siteName(id)}</option>`).join("")}</select></div>
+      <div class="field"><label>Site</label><select name="site">${siteOptions.map((id) => `<option value="${id}">${esc(siteName(id))}</option>`).join("")}</select></div>
       <div class="field"><label>Category</label>
         <select name="category"><option>Transport</option><option>Food</option><option>Tools Purchase</option><option>Miscellaneous</option></select>
       </div>
@@ -716,9 +723,9 @@ function showAddExpenseModal() {
   document.getElementById("expForm").onsubmit = (e) => {
     e.preventDefault();
     const f = new FormData(e.target);
-    const id = Math.max(...EXPENSES.map((x) => x.id)) + 1;
+    const id = Store.nextId(EXPENSES);
     EXPENSES.push({ id, date: f.get("date"), siteId: Number(f.get("site")), category: f.get("category"), amount: Number(f.get("amount")), paidBy: state.currentUserId, description: f.get("description"), approvedBy: null, remarks: "" });
-    AUDIT_LOG.push({ id: AUDIT_LOG.length + 1, timestamp: nowStamp(), userId: state.currentUserId, action: "Expense Added", details: `${f.get("category")} expense of ${currency(f.get("amount"))} at ${siteName(Number(f.get("site")))}` });
+    AUDIT_LOG.push({ id: Store.nextId(AUDIT_LOG), timestamp: nowStamp(), userId: state.currentUserId, action: "Expense Added", details: `${f.get("category")} expense of ${currency(f.get("amount"))} at ${siteName(Number(f.get("site")))}` });
     closeModal();
     showToast("Expense recorded, pending review");
     render();
@@ -743,18 +750,18 @@ function pageResources() {
       const t = TOOLS.find((x) => x.siteId === s.id);
       const se = SAFETY_EQUIPMENT.find((x) => x.siteId === s.id);
       return `<div class="panel">
-        <div class="panel-head"><div class="panel-title">${s.name}</div></div>
+        <div class="panel-head"><div class="panel-title">${esc(s.name)}</div></div>
         <div class="panel-body">
           <div class="grid cols-2">
             <div>
               <div class="stat-label" style="margin-bottom:8px;">Tools</div>
-              <p style="margin:0 0 6px;">${t ? t.details : "No entry recorded."}</p>
-              ${t && t.remarks ? `<div class="dim" style="font-size:12px;">${t.remarks}</div>` : ""}
+              <p style="margin:0 0 6px;">${t ? esc(t.details) : "No entry recorded."}</p>
+              ${t && t.remarks ? `<div class="dim" style="font-size:12px;">${esc(t.remarks)}</div>` : ""}
             </div>
             <div>
               <div class="stat-label" style="margin-bottom:8px;">Safety Equipment</div>
-              <p style="margin:0 0 6px;">${se ? se.details : "No entry recorded."}</p>
-              ${se && se.remarks ? `<div class="dim" style="font-size:12px;">${se.remarks}</div>` : ""}
+              <p style="margin:0 0 6px;">${se ? esc(se.details) : "No entry recorded."}</p>
+              ${se && se.remarks ? `<div class="dim" style="font-size:12px;">${esc(se.remarks)}</div>` : ""}
             </div>
           </div>
         </div>
@@ -777,12 +784,12 @@ function pageMaterials() {
         <thead><tr><th>Material</th><th>Site</th><th>Quantity</th><th>Provided By</th><th>Date</th><th>Remarks</th></tr></thead>
         <tbody>
           ${list.length ? list.map((m) => `<tr>
-            <td>${m.name}</td>
-            <td>${siteName(m.siteId)}</td>
-            <td>${m.quantity.toLocaleString("en-IN")} ${m.unit}</td>
-            <td>${m.providedBy}</td>
-            <td class="text-mono">${m.date}</td>
-            <td class="dim">${m.remarks || "—"}</td>
+            <td>${esc(m.name)}</td>
+            <td>${esc(siteName(m.siteId))}</td>
+            <td>${m.quantity.toLocaleString("en-IN")} ${esc(m.unit)}</td>
+            <td>${esc(m.providedBy)}</td>
+            <td class="text-mono">${esc(m.date)}</td>
+            <td class="dim">${esc(m.remarks || "—")}</td>
           </tr>`).join("") : `<tr><td colspan="6" class="empty-note">No entries in scope.</td></tr>`}
         </tbody>
       </table>
@@ -827,8 +834,8 @@ function pageReports() {
           <thead><tr><th>Site</th><th>Status</th><th>Manpower</th><th>Attendance Marked</th><th>Present</th><th>Wage Outstanding</th><th>Total Expense</th></tr></thead>
           <tbody>
             ${bySite.map((r) => `<tr>
-              <td>${r.s.name}</td>
-              <td><span class="tag ${r.s.status === "Active" ? "ok" : r.s.status === "Paused" ? "warn" : "neutral"}">${r.s.status}</span></td>
+              <td>${esc(r.s.name)}</td>
+              <td><span class="tag ${r.s.status === "Active" ? "ok" : r.s.status === "Paused" ? "warn" : "neutral"}">${esc(r.s.status)}</span></td>
               <td>${r.labour}</td>
               <td>${r.total}</td>
               <td>${r.present}</td>
@@ -871,8 +878,8 @@ function pageAudit() {
           <thead><tr><th>Timestamp</th><th>User</th><th>Action</th><th>Details</th></tr></thead>
           <tbody>
             ${AUDIT_LOG.slice().reverse().map((a) => `<tr>
-              <td class="text-mono">${a.timestamp}</td>
-              <td>${userName(a.userId)}</td>
+              <td class="text-mono">${esc(a.timestamp)}</td>
+              <td>${esc(userName(a.userId))}</td>
               <td><span class="tag neutral">${esc(a.action)}</span></td>
               <td class="dim">${esc(a.details)}</td>
             </tr>`).join("")}
@@ -884,23 +891,37 @@ function pageAudit() {
 }
 
 /* ---------- modal helpers ---------- */
-function openModal(title, bodyHtml) {
-  closeModal();
+let modalReturnFocus = null;
+function openModal(title, bodyHtml, opts = {}) {
+  const hadModal = !!document.getElementById("modalOverlay");
+  const prev = document.activeElement;
+  closeModal(true);
+  if (!hadModal) modalReturnFocus = prev && prev !== document.body ? prev : null;
   const overlay = document.createElement("div");
   overlay.className = "modal-overlay";
   overlay.id = "modalOverlay";
   overlay.innerHTML = `
-    <div class="modal">
-      <div class="modal-head"><div class="modal-title">${title}</div><button class="modal-close" onclick="closeModal()">×</button></div>
+    <div class="modal${opts.wide ? " modal-wide" : ""}" role="dialog" aria-modal="true">
+      <div class="modal-head"><div class="modal-title">${title}</div><button type="button" class="modal-close" aria-label="Close" onclick="closeModal()">×</button></div>
       <div class="modal-body">${bodyHtml}</div>
     </div>`;
   overlay.addEventListener("mousedown", (e) => { if (e.target === overlay) closeModal(); });
   document.body.appendChild(overlay);
+  const first = overlay.querySelector(".modal-body input:not([type=hidden]):not([disabled]),.modal-body select:not([disabled]),.modal-body textarea:not([disabled]),.modal-body button:not([disabled])");
+  if (first) first.focus();
 }
-function closeModal() {
+function closeModal(keepFocus) {
   const m = document.getElementById("modalOverlay");
-  if (m) m.remove();
+  if (!m) return;
+  m.remove();
+  if (keepFocus === true) return; // openModal replaces the dialog; keep the original return target
+  const t = modalReturnFocus;
+  modalReturnFocus = null;
+  if (t && document.contains(t) && typeof t.focus === "function") t.focus();
 }
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && document.getElementById("modalOverlay")) { e.preventDefault(); closeModal(); }
+});
 
 function nowStamp() {
   return "2026-09-16 " + new Date().toTimeString().slice(0, 5);
