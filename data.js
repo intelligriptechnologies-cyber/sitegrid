@@ -127,32 +127,52 @@ const EXPENSES = [
   { id: 6, date: "2026-08-28", siteId: 1, labourId: 1, category: "Labour Welfare", amount: 1800, paidBy: 6, description: "First-aid and medicine for Suresh Rout", approvedBy: null, status: "Pending", remarks: "" },
 ];
 
-/* Tools tracking — Phase 1 text entry per site */
+/* Tools and safety equipment — one row per item per site.
+   condition: Good | Needs repair | Needs inspection | Out of service */
 const TOOLS = [
-  { id: 1, siteId: 1, details: "4 concrete mixers, 6 vibrators, 10 wheelbarrows, 25 shovels", remarks: "1 mixer under repair" },
-  { id: 2, siteId: 2, details: "2 scaffolding sets, 8 ladders", remarks: "Stored, site paused" },
-  { id: 3, siteId: 3, details: "3 cable drums, 40 conduit pipes, 2 drilling machines", remarks: "" },
-  { id: 4, siteId: 4, details: "5 tile cutters, 12 trowels", remarks: "Handed over to client store" },
-  { id: 5, siteId: 5, details: "2 excavators on rent, 6 shovels, 4 wheelbarrows", remarks: "Excavator rent ends 2026-10-01" },
+  { id: 1, siteId: 1, name: "Concrete mixer", quantity: 3, unit: "Nos", condition: "Good", remarks: "", updatedOn: "2026-09-01", updatedBy: 7 },
+  { id: 2, siteId: 1, name: "Concrete mixer", quantity: 1, unit: "Nos", condition: "Needs repair", remarks: "Under repair", updatedOn: "2026-09-01", updatedBy: 7 },
+  { id: 3, siteId: 1, name: "Vibrator", quantity: 6, unit: "Nos", condition: "Good", remarks: "", updatedOn: "2026-09-01", updatedBy: 7 },
+  { id: 4, siteId: 1, name: "Wheelbarrow", quantity: 10, unit: "Nos", condition: "Good", remarks: "", updatedOn: "2026-09-01", updatedBy: 7 },
+  { id: 5, siteId: 1, name: "Shovel", quantity: 25, unit: "Nos", condition: "Good", remarks: "", updatedOn: "2026-09-01", updatedBy: 7 },
+  { id: 6, siteId: 2, name: "Scaffolding set", quantity: 2, unit: "Sets", condition: "Good", remarks: "Stored, site paused", updatedOn: "2026-09-01", updatedBy: 7 },
+  { id: 7, siteId: 2, name: "Ladder", quantity: 8, unit: "Nos", condition: "Good", remarks: "Stored, site paused", updatedOn: "2026-09-01", updatedBy: 7 },
+  { id: 8, siteId: 3, name: "Cable drum", quantity: 3, unit: "Nos", condition: "Good", remarks: "", updatedOn: "2026-09-01", updatedBy: 7 },
+  { id: 9, siteId: 3, name: "Conduit pipe", quantity: 40, unit: "Nos", condition: "Good", remarks: "", updatedOn: "2026-09-01", updatedBy: 7 },
+  { id: 10, siteId: 3, name: "Drilling machine", quantity: 2, unit: "Nos", condition: "Good", remarks: "", updatedOn: "2026-09-01", updatedBy: 7 },
+  { id: 11, siteId: 4, name: "Tile cutter", quantity: 5, unit: "Nos", condition: "Good", remarks: "Handed over to client store", updatedOn: "2026-09-01", updatedBy: 7 },
+  { id: 12, siteId: 4, name: "Trowel", quantity: 12, unit: "Nos", condition: "Good", remarks: "Handed over to client store", updatedOn: "2026-09-01", updatedBy: 7 },
+  { id: 13, siteId: 5, name: "Excavator (rented)", quantity: 2, unit: "Nos", condition: "Good", remarks: "Excavator rent ends 2026-10-01", updatedOn: "2026-09-01", updatedBy: 7 },
+  { id: 14, siteId: 5, name: "Shovel", quantity: 6, unit: "Nos", condition: "Good", remarks: "", updatedOn: "2026-09-01", updatedBy: 7 },
+  { id: 15, siteId: 5, name: "Wheelbarrow", quantity: 4, unit: "Nos", condition: "Good", remarks: "", updatedOn: "2026-09-01", updatedBy: 7 },
 ];
 
-/* Safety equipment tracking — Phase 1 text entry per site */
 const SAFETY_EQUIPMENT = [
-  { id: 1, siteId: 1, details: "40 helmets, 40 safety shoes, 15 harnesses, 20 reflective jackets", remarks: "10 harnesses due for inspection" },
-  { id: 2, siteId: 2, details: "20 helmets, 20 safety shoes", remarks: "Stored, site paused" },
-  { id: 3, siteId: 3, details: "25 helmets, 25 safety shoes, 10 gloves sets", remarks: "" },
-  { id: 4, siteId: 4, details: "15 helmets, 15 safety shoes", remarks: "Returned to central store" },
-  { id: 5, siteId: 5, details: "18 helmets, 18 safety shoes, 6 harnesses", remarks: "New stock issued 2026-09-01" },
+  { id: 1, siteId: 1, name: "Helmet", quantity: 40, unit: "Nos", condition: "Good", remarks: "", updatedOn: "2026-09-01", updatedBy: 7 },
+  { id: 2, siteId: 1, name: "Safety shoes", quantity: 40, unit: "Pairs", condition: "Good", remarks: "", updatedOn: "2026-09-01", updatedBy: 7 },
+  { id: 3, siteId: 1, name: "Harness", quantity: 5, unit: "Nos", condition: "Good", remarks: "", updatedOn: "2026-09-01", updatedBy: 7 },
+  { id: 4, siteId: 1, name: "Harness", quantity: 10, unit: "Nos", condition: "Needs inspection", remarks: "Due for inspection", updatedOn: "2026-09-01", updatedBy: 7 },
+  { id: 5, siteId: 1, name: "Reflective jacket", quantity: 20, unit: "Nos", condition: "Good", remarks: "", updatedOn: "2026-09-01", updatedBy: 7 },
+  { id: 6, siteId: 2, name: "Helmet", quantity: 20, unit: "Nos", condition: "Good", remarks: "Stored, site paused", updatedOn: "2026-09-01", updatedBy: 7 },
+  { id: 7, siteId: 2, name: "Safety shoes", quantity: 20, unit: "Pairs", condition: "Good", remarks: "Stored, site paused", updatedOn: "2026-09-01", updatedBy: 7 },
+  { id: 8, siteId: 3, name: "Helmet", quantity: 25, unit: "Nos", condition: "Good", remarks: "", updatedOn: "2026-09-01", updatedBy: 7 },
+  { id: 9, siteId: 3, name: "Safety shoes", quantity: 25, unit: "Pairs", condition: "Good", remarks: "", updatedOn: "2026-09-01", updatedBy: 7 },
+  { id: 10, siteId: 3, name: "Gloves set", quantity: 10, unit: "Sets", condition: "Good", remarks: "", updatedOn: "2026-09-01", updatedBy: 7 },
+  { id: 11, siteId: 4, name: "Helmet", quantity: 15, unit: "Nos", condition: "Good", remarks: "Returned to central store", updatedOn: "2026-09-01", updatedBy: 7 },
+  { id: 12, siteId: 4, name: "Safety shoes", quantity: 15, unit: "Pairs", condition: "Good", remarks: "Returned to central store", updatedOn: "2026-09-01", updatedBy: 7 },
+  { id: 13, siteId: 5, name: "Helmet", quantity: 18, unit: "Nos", condition: "Good", remarks: "New stock issued 2026-09-01", updatedOn: "2026-09-01", updatedBy: 7 },
+  { id: 14, siteId: 5, name: "Safety shoes", quantity: 18, unit: "Pairs", condition: "Good", remarks: "New stock issued 2026-09-01", updatedOn: "2026-09-01", updatedBy: 7 },
+  { id: 15, siteId: 5, name: "Harness", quantity: 6, unit: "Nos", condition: "Good", remarks: "New stock issued 2026-09-01", updatedOn: "2026-09-01", updatedBy: 7 },
 ];
 
 /* Material tracking — client-provided vs company-provided */
 const MATERIALS = [
-  { id: 1, siteId: 1, name: "Cement (OPC 53)", category: "Company Provided", quantity: 500, unit: "Bags", providedBy: "Kalinga Infra Suppliers", date: "2026-09-01", remarks: "" },
-  { id: 2, siteId: 1, name: "TMT Steel Bars", category: "Client Provided", quantity: 12, unit: "Tonnes", providedBy: "Odisha Housing Corporation", date: "2026-09-03", remarks: "Grade Fe500" },
-  { id: 3, siteId: 3, name: "Copper Wiring", category: "Company Provided", quantity: 2000, unit: "Meters", providedBy: "Kalinga Infra Suppliers", date: "2026-09-05", remarks: "" },
-  { id: 4, siteId: 3, name: "MCB Distribution Boards", category: "Client Provided", quantity: 15, unit: "Units", providedBy: "Kalinga Infra Developers", date: "2026-09-06", remarks: "" },
-  { id: 5, siteId: 5, name: "Bricks", category: "Company Provided", quantity: 25000, unit: "Numbers", providedBy: "Local Brick Kiln", date: "2026-09-10", remarks: "" },
-  { id: 6, siteId: 4, name: "Sanitary Fittings", category: "Client Provided", quantity: 12, unit: "Sets", providedBy: "Bay Residency Owners Association", date: "2026-01-20", remarks: "Installed and handed over" },
+  { id: 1, siteId: 1, name: "Cement (OPC 53)", category: "Company Provided", quantity: 500, unit: "Bags", providedBy: "Kalinga Infra Suppliers", date: "2026-09-01", remarks: "", updatedBy: 7 },
+  { id: 2, siteId: 1, name: "TMT Steel Bars", category: "Client Provided", quantity: 12, unit: "Tonnes", providedBy: "Odisha Housing Corporation", date: "2026-09-03", remarks: "Grade Fe500", updatedBy: 7 },
+  { id: 3, siteId: 3, name: "Copper Wiring", category: "Company Provided", quantity: 2000, unit: "Meters", providedBy: "Kalinga Infra Suppliers", date: "2026-09-05", remarks: "", updatedBy: 7 },
+  { id: 4, siteId: 3, name: "MCB Distribution Boards", category: "Client Provided", quantity: 15, unit: "Units", providedBy: "Kalinga Infra Developers", date: "2026-09-06", remarks: "", updatedBy: 7 },
+  { id: 5, siteId: 5, name: "Bricks", category: "Company Provided", quantity: 25000, unit: "Numbers", providedBy: "Local Brick Kiln", date: "2026-09-10", remarks: "", updatedBy: 7 },
+  { id: 6, siteId: 4, name: "Sanitary Fittings", category: "Client Provided", quantity: 12, unit: "Sets", providedBy: "Bay Residency Owners Association", date: "2026-01-20", remarks: "Installed and handed over", updatedBy: 7 },
 ];
 
 /* Audit log — important system actions */

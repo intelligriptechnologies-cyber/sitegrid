@@ -90,9 +90,9 @@ test("Store purges orphaned sitegrid.* keys on load and reset (session key kept 
   ctx.localStorage.setItem("sitegrid.v1.USERS", "[]");
   ctx.localStorage.setItem("sitegrid.v0.Whatever", "[]");
   ctx.localStorage.setItem("other.key", "x");
-  ctx.localStorage.setItem("sitegrid.v4.USERS", "[]");
+  ctx.localStorage.setItem("sitegrid.v5.USERS", "[]");
   get("Store.storage = localStorage; Store.load()");
-  assert.deepStrictEqual(ctx.localStorage.keys().sort(), ["other.key", "sitegrid.v4.USERS"]);
+  assert.deepStrictEqual(ctx.localStorage.keys().sort(), ["other.key", "sitegrid.v5.USERS"]);
   get("Store.reset(false)");
   assert.deepStrictEqual(ctx.localStorage.keys(), ["other.key"]);
 });

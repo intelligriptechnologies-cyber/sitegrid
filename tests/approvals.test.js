@@ -19,7 +19,7 @@ const ids = (user, dept) => J(`Approvals.visibleRequests(${U(user)}, ${dept}).ma
 const NOW = "2026-09-20 10:00";
 const sorted = (a) => a.sort((x, y) => x - y);
 
-test("prefix is v4", () => assert.strictEqual(get("Store.PREFIX"), "sitegrid.v4."));
+test("prefix is v5", () => assert.strictEqual(get("Store.PREFIX"), "sitegrid.v5."));
 
 test("every seed request has the new shape", () => {
   const rows = J("APPROVAL_REQUESTS");
