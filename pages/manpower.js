@@ -59,8 +59,15 @@ function offeredSites() {
   return Auth.isAllDeptRole(currentUser()) ? SITES.slice() : SITES.filter((s) => scopedSiteIds().includes(s.id));
 }
 function visibleLabour() {
-  const scoped = scopedSiteIds();
-  return LABOUR.filter((l) => labourInSites(l, scoped) || (isUnmapped(l.id) && can("addLabour")));
+  return LABOUR.filter(labourVisibleNow);
+}
+
+/* Small dim line with the most recent transfer (from -> to, date), when transferHistory exists. */
+function transferLineHtml(l) {
+  const h = l.transferHistory;
+  if (!Array.isArray(h) || !h.length) return "";
+  const t = h[h.length - 1];
+  return `<div class="dim" style="font-size:11px">Transferred ${esc(siteName(t.fromSiteId))} → ${esc(siteName(t.toSiteId))}, ${esc(t.date)}</div>`;
 }
 
 function manpowerTableHtml() {
@@ -74,7 +81,7 @@ function manpowerTableHtml() {
       { label: "Phone", text: (l) => l.phone, html: (l) => `<span class="text-mono">${esc(l.phone)}</span>` },
       { label: "Skill", text: (l) => l.skill },
       { label: "Wage/day", text: (l) => String(l.wageRate), html: (l) => esc(currency(l.wageRate)), align: "right" },
-      { label: "Site(s)", text: (l) => labourSiteNames(l.id), html: (l) => (isUnmapped(l.id) ? UI.tag("Unmapped", "neutral") : esc(labourSiteNames(l.id))) },
+      { label: "Site(s)", text: (l) => labourSiteNames(l.id), html: (l) => (isUnmapped(l.id) ? UI.tag("Unmapped", "neutral") : esc(labourSiteNames(l.id))) + transferLineHtml(l) },
       { label: "Biometric", text: (l) => (labourBioCount(l.id) ? String(labourBioCount(l.id)) : "—") },
       { label: "Approval", text: (l) => l.approvalStatus, html: (l) => UI.tag(l.approvalStatus, labourApprovalKind(l.approvalStatus)) },
       { label: "Status", text: (l) => (l.active ? "Active" : "Inactive"), html: (l) => UI.switchHtml(l.active, `toggleLabourActive(${l.id}, this.checked)`) },
@@ -255,7 +262,7 @@ function bindLabourForm(l) {
     }
     const approver = can("approveLabour");
     const id = Store.nextId(LABOUR);
-    const row = { id, biometricRef: "", siteId: null, ...rec, active: approver, approvalStatus: approver ? "Approved" : "Pending" };
+    const row = { id, createdBy: state.currentUserId, biometricRef: "", siteId: null, ...rec, active: approver, approvalStatus: approver ? "Approved" : "Pending" };
     LABOUR.push(row);
     if (vals.siteIds.length) mapLabourToSites(id, vals.siteIds);
     if (!approver) {
@@ -281,6 +288,7 @@ function bindLabourBiometric(l) {
     UI.confirm(`Delete the biometric image "${b.label}"?`, () => {
       const i = BIOMETRICS.findIndex((x) => x.id === b.id);
       if (i >= 0) BIOMETRICS.splice(i, 1);
+      if (l.biometricRefAuto && !labourBioCount(l.id)) { l.biometricRef = ""; delete l.biometricRefAuto; }
       logLabourAudit("Biometric Deleted", `${b.label} removed for ${l.name}`);
       showToast("Biometric image deleted");
       reopen();
@@ -297,12 +305,22 @@ function bindLabourBiometric(l) {
     if (!label) { err.textContent = "Label is required"; return; }
     if (!file) { err.textContent = "Choose an image file"; return; }
     let dataUrl;
-    try { dataUrl = await UI.readImage(file); } catch (e) { err.textContent = e.message; return; }
+    try { dataUrl = await UI.readImage(file, undefined, { maxDim: 400 }); } catch (e) { err.textContent = e.message; return; }
     const hash = biometricHash(dataUrl);
-    const dup = findBiometricDuplicate(hash);
+    const dup = findBiometricDuplicate(hash, dataUrl);
     if (dup) { err.textContent = `This impression is already registered to ${dup.labour ? dup.labour.name : "another person"}`; return; }
-    BIOMETRICS.push({ id: Store.nextId(BIOMETRICS), labourId: l.id, label, imageDataUrl: dataUrl, hash, capturedOn: nowStamp().slice(0, 10) });
-    if (!l.biometricRef) l.biometricRef = "BIO" + l.id + labourBioCount(l.id);
+    const bio = { id: Store.nextId(BIOMETRICS), labourId: l.id, label, imageDataUrl: dataUrl, hash, capturedOn: nowStamp().slice(0, 10) };
+    const prevRef = l.biometricRef, prevAuto = l.biometricRefAuto;
+    BIOMETRICS.push(bio);
+    if (!l.biometricRef) { l.biometricRef = "BIO" + l.id + labourBioCount(l.id); l.biometricRefAuto = true; }
+    if (!Store.save()) {
+      const i = BIOMETRICS.indexOf(bio);
+      if (i >= 0) BIOMETRICS.splice(i, 1);
+      l.biometricRef = prevRef;
+      if (prevAuto === undefined) delete l.biometricRefAuto; else l.biometricRefAuto = prevAuto;
+      err.textContent = "Not enough browser storage — image not saved";
+      return;
+    }
     logLabourAudit("Biometric Added", `${label} added for ${l.name}`);
     showToast("Biometric image added");
     reopen();

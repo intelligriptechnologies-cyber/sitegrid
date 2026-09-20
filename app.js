@@ -16,8 +16,9 @@ const userName = (id) => (byId(USERS, id) ? byId(USERS, id).name : "—");
 const deptName = (id) => (byId(DEPARTMENTS, id) ? byId(DEPARTMENTS, id).name : "—");
 const siteName = (id) => (byId(SITES, id) ? byId(SITES, id).name : "—");
 const labourName = (id) => (byId(LABOUR, id) ? byId(LABOUR, id).name : "—");
-const labourSiteNames = (id) => (isUnmapped(id) ? "Unmapped" : labourSiteIds(id).map(siteName).join(", "));
-const labourInSites = (l, siteIds) => labourSiteIds(l.id).some((sid) => siteIds.includes(sid));
+const labourSiteNames = (id) => scopedSiteNames(id, scopedSiteIds());
+const labourVisibleNow = (l) => labourVisible(l, currentUser(), scopedSiteIds(), state.deptId);
+const labourInSites = (l, siteIds) => !!l && labourSiteIds(l.id).some((sid) => siteIds.includes(sid));
 const roleName = (id) => (byId(ROLES, id) ? byId(ROLES, id).name : "—");
 const clientName = (id) => (byId(CLIENTS, id) ? byId(CLIENTS, id).name : "—");
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -149,7 +150,7 @@ function accessDenied(action) {
 function pageDashboard() {
   const scoped = scopedSiteIds();
   const activeSites = SITES.filter((s) => scoped.includes(s.id) && s.status === "Active").length;
-  const manpower = LABOUR.filter((l) => labourInSites(l, scoped) && l.approvalStatus === "Approved").length;
+  const manpower = LABOUR.filter((l) => labourVisibleNow(l) && l.approvalStatus === "Approved").length;
   const pendingApprovals = Approvals.visibleRequests(currentUser(), state.deptId).filter((a) => (a.status === "Pending" || a.status === "Resubmitted") && (a.siteId == null || scoped.includes(a.siteId))).length;
   const today = "2026-09-16";
   const todayAttendance = ATTENDANCE.filter((a) => a.date === today && scoped.includes(a.siteId));
@@ -688,7 +689,7 @@ function pageReports() {
         <table>
           <thead><tr><th>Status</th><th>Count</th></tr></thead>
           <tbody>
-            ${["Approved", "Pending", "Rejected"].map((st) => `<tr><td>${st}</td><td>${LABOUR.filter((l) => (labourInSites(l, scoped) || (isUnmapped(l.id) && can("addLabour"))) && l.approvalStatus === st).length}</td></tr>`).join("")}
+            ${["Approved", "Pending", "Rejected"].map((st) => `<tr><td>${st}</td><td>${LABOUR.filter((l) => labourVisibleNow(l) && l.approvalStatus === st).length}</td></tr>`).join("")}
           </tbody>
         </table>
       </div>

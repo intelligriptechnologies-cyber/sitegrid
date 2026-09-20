@@ -16,7 +16,7 @@ function loadCtx(files) {
 }
 let passed = 0;
 function test(name, fn) { try { fn(); passed++; console.log("ok  - " + name); } catch (e) { console.error("FAIL- " + name + "\n" + e.stack); process.exitCode = 1; } }
-const load = () => loadCtx(["data.js", "core/store.js", "core/mapping.js"]);
+const load = () => loadCtx(["data.js", "core/store.js", "core/auth.js", "core/mapping.js"]);
 const J = (x) => JSON.stringify(x);
 
 test("seed has LABOUR_SITES and BIOMETRICS; tables registered in Store", () => {
@@ -93,14 +93,46 @@ test("biometricHash deterministic and distinct", () => {
   assert.match(get("biometricHash('x')"), /^[0-9a-f]+$/);
 });
 
-test("findBiometricDuplicate finds owner and respects exceptId", () => {
+test("findBiometricDuplicate needs hash AND data URL equal; respects exceptId", () => {
   const { get } = load();
   get("BIOMETRICS.push({id:1,labourId:2,label:'Right thumb',imageDataUrl:'d',hash:'abc',capturedOn:'2026-09-20'})");
-  const d = get("findBiometricDuplicate('abc')");
+  const d = get("findBiometricDuplicate('abc','d')");
   assert.strictEqual(d.labour.id, 2);
   assert.strictEqual(d.biometric.id, 1);
-  assert.strictEqual(get("findBiometricDuplicate('abc',1)"), null);
-  assert.strictEqual(get("findBiometricDuplicate('zzz')"), null);
+  assert.strictEqual(get("findBiometricDuplicate('abc','other')"), null);
+  assert.strictEqual(get("findBiometricDuplicate('abc','d',1)"), null);
+  assert.strictEqual(get("findBiometricDuplicate('zzz','d')"), null);
+});
+
+test("seed LABOUR has createdBy from onboarding request", () => {
+  const { get } = load();
+  assert.strictEqual(get("LABOUR.find(l=>l.id===3).createdBy"), 8);
+  assert.strictEqual(get("LABOUR.every(l=>l.createdBy!=null)"), true);
+});
+
+test("scopedSiteNames hides out-of-scope names and counts them", () => {
+  const { get } = load();
+  // Dilip (5) is on sites 5 and 1
+  assert.strictEqual(get("scopedSiteNames(5,[1,5]).includes('+')"), false);
+  const one = get("scopedSiteNames(5,[1])");
+  assert.ok(one.endsWith(" +1 other") && one.startsWith(get("SITES.find(s=>s.id===1).name")));
+  assert.strictEqual(get("scopedSiteNames(5,[2])"), "+2 other");
+  assert.strictEqual(get("scopedSiteNames(3,[1,2])"), "Unmapped");
+});
+
+test("labourVisible: mapped in/out of scope; unmapped rule by role/creator/dept", () => {
+  const { get } = load();
+  // L3 = Project Manager (roleId 3); admin roleId 0; dept head roleId 2
+  get("var u3={id:7,roleId:3}, u0={id:1,roleId:0}, u2={id:3,roleId:2}, uo={id:9,roleId:3}");
+  assert.strictEqual(get("labourVisible(LABOUR.find(l=>l.id===1),u3,[1],1)"), true);
+  assert.strictEqual(get("labourVisible(LABOUR.find(l=>l.id===1),u3,[2],1)"), false);
+  // labour 3 unmapped, createdBy 8
+  assert.strictEqual(get("labourVisible(LABOUR.find(l=>l.id===3),{id:8,roleId:3},[],1)"), true);
+  assert.strictEqual(get("labourVisible(LABOUR.find(l=>l.id===3),u3,[1],1)"), false);
+  assert.strictEqual(get("labourVisible(LABOUR.find(l=>l.id===3),u2,[1],1)"), true);
+  assert.strictEqual(get("labourVisible(LABOUR.find(l=>l.id===3),u0,[1],null)"), true);
+  assert.strictEqual(get("labourVisible(LABOUR.find(l=>l.id===3),u0,[1],1)"), false);
+  assert.strictEqual(get("labourVisible(null,u0,[1],null)"), false);
 });
 
 console.log(passed + " passed");

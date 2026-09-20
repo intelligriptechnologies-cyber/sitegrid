@@ -34,12 +34,26 @@ const Store = {
     }
     return true;
   },
+  /* Serialise every table first, then write; if any write throws (e.g. quota), roll every key
+     already written in this call back to its previous value so storage is never half-updated. */
   save() {
     if (!this.storage) return false;
+    let payload;
+    try { payload = Object.entries(this.tables()).map(([name, arr]) => [this.PREFIX + name, JSON.stringify(arr)]); } catch (e) { return false; }
+    const written = [];
     try {
-      for (const [name, arr] of Object.entries(this.tables())) this.storage.setItem(this.PREFIX + name, JSON.stringify(arr));
+      for (const [key, json] of payload) {
+        const prev = this.storage.getItem(key);
+        this.storage.setItem(key, json);
+        written.push([key, prev]);
+      }
       return true;
-    } catch (e) { return false; }
+    } catch (e) {
+      for (const [key, prev] of written.reverse()) {
+        try { if (prev === null) this.storage.removeItem(key); else this.storage.setItem(key, prev); } catch (e2) { /* ignore */ }
+      }
+      return false;
+    }
   },
   nextId(arr) { return Math.max(0, ...arr.map((r) => Number(r.id) || 0)) + 1; },
   reset(reload = true) {

@@ -135,7 +135,7 @@ function siteOverviewHtml(s) {
 }
 
 function siteDetailsFormHtml(s, editable) {
-  const v = s || { status: "Active", projectType: "Residential" };
+  const v = s || { status: "Active", projectType: "Residential", startDate: new Date().toISOString().slice(0, 10) };
   const dis = editable ? "" : " disabled";
   const opts = (arr, cur) => arr.map(([val, label]) => `<option value="${esc(val)}" ${String(val) === String(cur ?? "") ? "selected" : ""}>${esc(label)}</option>`).join("");
   const u = currentUser();
@@ -179,7 +179,7 @@ function mpRowHtml(l, checked, disabled, extra) {
 function siteManpowerHtml(s, editable) {
   const mappedIds = siteLabourIds(s.id);
   const mapped = LABOUR.filter((l) => mappedIds.includes(l.id));
-  const avail = LABOUR.filter((l) => l.active && !mappedIds.includes(l.id));
+  const avail = LABOUR.filter((l) => l.active && !mappedIds.includes(l.id) && labourVisibleNow(l));
   const list = (kind, title, rows, emptyMsg) => `<div class="mp-col" data-list="${kind}">
     <div class="mp-col-head"><strong>${title}</strong><span class="dim">(${rows.length})</span>
       <span class="mp-links"><a href="#" data-sel="all">Select all</a> · <a href="#" data-sel="none">none</a></span></div>

@@ -107,4 +107,12 @@ test("login option label escapes user and role names", () => {
   assert.ok(out.includes("&lt;script&gt;") && out.endsWith("(Inactive)"));
 });
 
+test("UI.fitDimensions keeps aspect, never upscales", () => {
+  const { get } = loadCtx(["core/ui.js"]);
+  assert.strictEqual(JSON.stringify(get("UI.fitDimensions(800,400,400)")), '{"width":400,"height":200}');
+  assert.strictEqual(JSON.stringify(get("UI.fitDimensions(300,900,400)")), '{"width":133,"height":400}');
+  assert.strictEqual(JSON.stringify(get("UI.fitDimensions(200,100,400)")), '{"width":200,"height":100}');
+  assert.strictEqual(JSON.stringify(get("UI.fitDimensions(800,400)")), '{"width":800,"height":400}');
+});
+
 console.log(passed + " passed");

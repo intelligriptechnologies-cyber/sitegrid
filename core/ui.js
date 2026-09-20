@@ -303,17 +303,39 @@ const UI = (() => {
     (box.querySelector("[data-reason]") || box.querySelector("[data-no]")).focus();
   }
 
-  function readImage(file, maxBytes = 1048576) {
+  /* Fit (w, h) inside a maxDim x maxDim box keeping aspect ratio; never upscales. */
+  function fitDimensions(w, h, maxDim) {
+    if (!maxDim || (w <= maxDim && h <= maxDim)) return { width: w, height: h };
+    const k = maxDim / Math.max(w, h);
+    return { width: Math.max(1, Math.round(w * k)), height: Math.max(1, Math.round(h * k)) };
+  }
+
+  /* opts.maxDim: downscale via canvas and re-encode as JPEG (quality 0.8). The maxBytes check applies to the input file. */
+  function readImage(file, maxBytes = 1048576, opts = {}) {
     return new Promise((resolve, reject) => {
       if (!file || !/^image\//.test(file.type || "")) return reject(new Error("Choose an image file"));
       if (file.size > maxBytes) return reject(new Error("Image must be under 1 MB"));
       const r = new FileReader();
-      r.onload = () => resolve(r.result);
       r.onerror = () => reject(new Error("Could not read the image"));
+      r.onload = () => {
+        if (!opts.maxDim) return resolve(r.result);
+        const img = new Image();
+        img.onerror = () => reject(new Error("Could not read the image"));
+        img.onload = () => {
+          const { width, height } = fitDimensions(img.naturalWidth || img.width, img.naturalHeight || img.height, opts.maxDim);
+          const c = document.createElement("canvas");
+          c.width = width; c.height = height;
+          const ctx = c.getContext("2d");
+          ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, width, height);
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(c.toDataURL("image/jpeg", 0.8));
+        };
+        img.src = r.result;
+      };
       r.readAsDataURL(file);
     });
   }
 
   return { filterRows, paginate, tableHost, refresh, mountAll, unregister, getFiltered, switchHtml, form, confirm: confirmDialog,
-           tabs, showTab, readImage, tag, emptyState, esc: e, validateField };
+           tabs, showTab, readImage, fitDimensions, tag, emptyState, esc: e, validateField };
 })();
