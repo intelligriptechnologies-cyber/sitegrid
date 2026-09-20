@@ -641,6 +641,11 @@ tbody tr:last-child td{border-bottom:none;}
 /* ---------- shared UI kit ---------- */
 .ui-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:10px;}
 .ui-toolbar-extra{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+.export-menu{position:relative;display:inline-flex;}
+.export-menu-list{display:none;position:absolute;z-index:20;top:calc(100% + 5px);left:0;min-width:128px;padding:4px;background:var(--white);border:1px solid var(--line);border-radius:var(--radius);box-shadow:0 8px 20px rgba(20,39,40,.14);}
+.export-menu.open .export-menu-list{display:grid;gap:2px;}
+.export-menu-list button{border:0;background:transparent;color:var(--ink);font:inherit;font-size:12px;text-align:left;padding:7px 8px;border-radius:5px;cursor:pointer;}
+.export-menu-list button:hover,.export-menu-list button:focus{background:var(--teal-soft);outline:none;}
 .ui-search{border:1px solid var(--line);padding:8px 10px;font-size:13px;font-family:var(--sans);border-radius:var(--radius);background:var(--white);min-width:220px;margin-left:auto;}
 .ui-search:focus{outline:none;border-color:var(--teal);box-shadow:0 0 0 3px var(--teal-soft);}
 .ui-pager{display:flex;align-items:center;gap:14px;flex-wrap:wrap;justify-content:flex-end;padding:8px 0;font-family:var(--mono);font-size:11px;color:var(--ink-dim);}

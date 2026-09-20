@@ -65,6 +65,48 @@ const UI = (() => {
     return { rows: filterRows(st.cfg.rows(), st.cfg.columns, st.query), columns: st.cfg.columns };
   }
 
+  /* A reusable, delegated export dropdown. getMatrix is called only when a format is selected. */
+  const exportMenus = new Map();
+  let exportMenuId = 0;
+  let exportEventsBound = false;
+  function exportMenu(getMatrix, baseName) {
+    const id = `export-${++exportMenuId}`;
+    exportMenus.set(id, { getMatrix, baseName: String(baseName || "export") });
+    if (HAS_DOM && !exportEventsBound) {
+      exportEventsBound = true;
+      const closeMenus = () => document.querySelectorAll("[data-export-menu]").forEach((menu) => {
+        menu.classList.remove("open");
+        const button = menu.querySelector("[data-export-toggle]");
+        if (button) button.setAttribute("aria-expanded", "false");
+      });
+      document.addEventListener("click", (ev) => {
+        const item = ev.target.closest("[data-export-format]");
+        if (item) {
+          const menu = item.closest("[data-export-menu]");
+          const config = menu && exportMenus.get(menu.dataset.exportMenu);
+          closeMenus();
+          if (config && typeof Export !== "undefined") {
+            const matrix = config.getMatrix();
+            if (item.dataset.exportFormat === "pdf") Export.toPdf(matrix, config.baseName);
+            if (item.dataset.exportFormat === "excel") Export.toExcel(matrix, config.baseName);
+          }
+          return;
+        }
+        const toggle = ev.target.closest("[data-export-toggle]");
+        if (toggle) {
+          const menu = toggle.closest("[data-export-menu]");
+          const open = menu.classList.contains("open");
+          closeMenus();
+          if (!open) { menu.classList.add("open"); toggle.setAttribute("aria-expanded", "true"); }
+          return;
+        }
+        if (!ev.target.closest("[data-export-menu]")) closeMenus();
+      });
+      document.addEventListener("keydown", (ev) => { if (ev.key === "Escape") closeMenus(); });
+    }
+    return `<div class="export-menu" data-export-menu="${e(id)}"><button type="button" class="btn secondary small export-menu-toggle" data-export-toggle aria-haspopup="true" aria-expanded="false">↥ Export ▾</button><div class="export-menu-list" role="menu"><button type="button" role="menuitem" data-export-format="pdf">◫ PDF</button><button type="button" role="menuitem" data-export-format="excel">▦ Excel</button></div></div>`;
+  }
+
   function findHost(id) {
     if (!HAS_DOM) return null;
     return [...document.querySelectorAll(".ui-table")].find((el) => el.dataset.id === id) || null;
@@ -336,6 +378,6 @@ const UI = (() => {
     });
   }
 
-  return { filterRows, paginate, tableHost, refresh, mountAll, unregister, getFiltered, switchHtml, form, confirm: confirmDialog,
+  return { filterRows, paginate, tableHost, refresh, mountAll, unregister, getFiltered, exportMenu, switchHtml, form, confirm: confirmDialog,
            tabs, showTab, readImage, fitDimensions, tag, emptyState, esc: e, validateField };
 })();
