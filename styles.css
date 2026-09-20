@@ -685,3 +685,13 @@ tbody tr:last-child td{border-bottom:none;}
 .role-card-users{font-size:12px;}
 .role-card-perms{gap:4px;}
 .role-card-del{position:absolute;right:10px;bottom:8px;}
+
+/* Fix wave: honour the hidden attribute even where display is set explicitly */
+[hidden]{display:none !important;}
+.modal.modal-wide{max-width:820px;}
+.ui-table tfoot td{font-weight:600;border-top:1px solid var(--line);background:var(--line-soft);}
+.table td.num,.table th.num{text-align:right;}
+.table tr.row-warn td{background:var(--warn-soft);}
+.table tr.row-danger td{background:var(--danger-soft);}
+.ui-confirm-reason{width:100%;margin-top:8px;}
+.site-note{color:var(--warn);}
