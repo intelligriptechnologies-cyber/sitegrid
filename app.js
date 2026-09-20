@@ -289,58 +289,6 @@ function showAddDepartmentModal() {
 }
 
 /* ============================================================
-   PAGE: WAGES
-   ============================================================ */
-function pageWages() {
-  const scoped = scopedSiteIds();
-  const rows = WAGES.filter((w) => scoped.includes(w.siteId));
-  const canUpdate = can("updateWagePayment");
-  const statusTag = (s) => s === "Paid" ? "ok" : s === "Partially Paid" ? "warn" : "danger";
-  return `
-    <div class="page-head">
-      <div>
-        <div class="page-eyebrow">// OPERATIONS</div>
-        <div class="page-heading">Wages &amp; Payments</div>
-        <div class="page-sub">Payable computed from attendance days × wage rate, minus advances.</div>
-      </div>
-    </div>
-    <div class="panel">
-      <div class="panel-body flush table-wrap">
-        <table>
-          <thead><tr><th>Labour</th><th>Site</th><th>Rate/Day</th><th>Present</th><th>Half Days</th><th>Payable</th><th>Advance</th><th>Balance</th><th>Status</th>${canUpdate ? "<th>Action</th>" : ""}</tr></thead>
-          <tbody>
-            ${rows.map((w) => `<tr>
-              <td>${esc(labourName(w.labourId))}</td>
-              <td>${esc(siteName(w.siteId))}</td>
-              <td>${currency(w.wageRate)}</td>
-              <td>${w.daysPresent}</td>
-              <td>${w.halfDays}</td>
-              <td>${currency(w.totalPayable)}</td>
-              <td>${currency(w.advancePaid)}</td>
-              <td class="text-mono">${currency(w.balancePayable)}</td>
-              <td><span class="tag ${statusTag(w.status)}">${esc(w.status)}</span></td>
-              ${canUpdate ? `<td>${w.status !== "Paid" ? `<button class="btn teal small" onclick="markWagePaid(${w.id})">Mark Paid</button>` : `<span class="faint text-mono">Settled</span>`}</td>` : ""}
-            </tr>`).join("")}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  `;
-}
-
-function markWagePaid(id) {
-  const w = byId(WAGES, id);
-  w.status = "Paid";
-  w.advancePaid = w.totalPayable;
-  w.balancePayable = 0;
-  w.paymentDate = "2026-09-16";
-  w.paidBy = state.currentUserId;
-  AUDIT_LOG.push({ id: Store.nextId(AUDIT_LOG), timestamp: nowStamp(), userId: state.currentUserId, action: "Wage Payment Updated", details: `${labourName(w.labourId)} marked Paid` });
-  showToast("Wage marked as paid");
-  render();
-}
-
-/* ============================================================
    PAGE: EXPENSES
    ============================================================ */
 function pageExpenses() {

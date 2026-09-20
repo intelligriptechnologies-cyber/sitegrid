@@ -800,3 +800,9 @@ tbody tr:last-child td{border-bottom:none;}
 .attendance-include{display:flex;gap:6px;align-items:center;font-size:12px;font-family:var(--mono);}
 .attendance-mark-row .dim{font-size:11px;margin-top:2px;}
 @media (max-width:800px){.attendance-mark-row{grid-template-columns:78px minmax(150px,1fr) 120px;}.attendance-mark-row input[name="checkIn"],.attendance-mark-row input[name="checkOut"],.attendance-mark-row input[name="remarks"]{grid-column:2 / -1;}.attendance-filters .panel-body{align-items:stretch;}.attendance-toggle{padding:0;}}
+
+/* Phase 5 shared filter bar and finance pages */
+.filter-bar{margin-bottom:16px;}
+.filter-bar .panel-body{display:flex;align-items:end;gap:12px;flex-wrap:wrap;}
+.filter-bar .field{min-width:150px;margin:0;}
+.field-hint{font-size:11px;color:var(--ink-dim);margin-top:4px;}

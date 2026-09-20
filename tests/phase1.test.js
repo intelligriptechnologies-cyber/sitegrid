@@ -122,7 +122,7 @@ test("session: save/load/clear round-trip", () => {
 test("store: non-array stored value is ignored, seed kept", () => {
   const { get, ctx } = loadCtx(["data.js", "core/store.js"]);
   const before = get("USERS.length");
-  ctx.localStorage.setItem("sitegrid.v3.USERS", "{}");
+  ctx.localStorage.setItem("sitegrid.v4.USERS", "{}");
   assert.strictEqual(get("Store.load()"), true);
   assert.strictEqual(get("USERS.length"), before);
 });

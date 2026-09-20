@@ -107,22 +107,24 @@ const ATTENDANCE = [
   { id: 10, date: "2026-09-16", siteId: 5, labourId: 5, status: "Present", checkIn: "08:00", checkOut: "17:00", markedBy: 7, gps: { lat: 20.3481, lng: 85.8251 }, remarks: "" },
 ];
 
-/* Wage & payment tracking — Pending / Partially Paid / Paid */
+/* Wage & payment tracking — one record per labour + site + period ("YYYY-MM").
+   payments[] is the ledger; advancePaid / balancePayable / status are derived by recalcWage (pages/wages.js). */
 const WAGES = [
-  { id: 1, labourId: 1, siteId: 1, wageRate: 750, daysPresent: 24, halfDays: 1, totalPayable: 18375, advancePaid: 5000, balancePayable: 13375, status: "Partially Paid", paymentDate: "2026-09-05", paidBy: 6, remarks: "Advance adjusted" },
-  { id: 2, labourId: 2, siteId: 1, wageRate: 800, daysPresent: 22, halfDays: 0, totalPayable: 17600, advancePaid: 0, balancePayable: 17600, status: "Pending", paymentDate: null, paidBy: null, remarks: "" },
-  { id: 3, labourId: 5, siteId: 5, wageRate: 700, daysPresent: 20, halfDays: 0, totalPayable: 14000, advancePaid: 14000, balancePayable: 0, status: "Paid", paymentDate: "2026-09-10", paidBy: 6, remarks: "Full settlement" },
-  { id: 4, labourId: 6, siteId: 3, wageRate: 780, daysPresent: 18, halfDays: 2, totalPayable: 14820, advancePaid: 8000, balancePayable: 6820, status: "Partially Paid", paymentDate: "2026-09-08", paidBy: 8, remarks: "" },
-  { id: 5, labourId: 8, siteId: 1, wageRate: 760, daysPresent: 21, halfDays: 1, totalPayable: 16340, advancePaid: 0, balancePayable: 16340, status: "Pending", paymentDate: null, paidBy: null, remarks: "" },
+  { id: 1, labourId: 1, siteId: 1, period: "2026-09", wageRate: 750, daysPresent: 24, halfDays: 1, totalPayable: 18375, advancePaid: 5000, balancePayable: 13375, status: "Partially Paid", paymentDate: "2026-09-05", paidBy: 6, remarks: "Advance adjusted", payments: [{ id: 1, date: "2026-09-05", amount: 5000, mode: "Cash", by: 6, remarks: "Advance adjusted" }] },
+  { id: 2, labourId: 2, siteId: 1, period: "2026-09", wageRate: 800, daysPresent: 22, halfDays: 0, totalPayable: 17600, advancePaid: 0, balancePayable: 17600, status: "Pending", paymentDate: null, paidBy: null, remarks: "", payments: [] },
+  { id: 3, labourId: 5, siteId: 5, period: "2026-09", wageRate: 700, daysPresent: 20, halfDays: 0, totalPayable: 14000, advancePaid: 14000, balancePayable: 0, status: "Paid", paymentDate: "2026-09-10", paidBy: 6, remarks: "Full settlement", payments: [{ id: 1, date: "2026-09-10", amount: 14000, mode: "Bank", by: 6, remarks: "Full settlement" }] },
+  { id: 4, labourId: 6, siteId: 3, period: "2026-09", wageRate: 780, daysPresent: 18, halfDays: 2, totalPayable: 14820, advancePaid: 8000, balancePayable: 6820, status: "Partially Paid", paymentDate: "2026-09-08", paidBy: 8, remarks: "", payments: [{ id: 1, date: "2026-09-08", amount: 8000, mode: "UPI", by: 8, remarks: "" }] },
+  { id: 5, labourId: 8, siteId: 1, period: "2026-09", wageRate: 760, daysPresent: 21, halfDays: 1, totalPayable: 16340, advancePaid: 0, balancePayable: 16340, status: "Pending", paymentDate: null, paidBy: null, remarks: "", payments: [] },
 ];
 
-/* Petty expenses */
+/* Petty expenses — status Approved | Pending | Rejected (derived from approvedBy for the seed); labourId optional */
 const EXPENSES = [
-  { id: 1, date: "2026-09-14", siteId: 1, category: "Transport", amount: 1200, paidBy: 7, description: "Sand transport local trips", approvedBy: 3, remarks: "" },
-  { id: 2, date: "2026-09-14", siteId: 1, category: "Food", amount: 850, paidBy: 7, description: "Labour tea and refreshment", approvedBy: 3, remarks: "" },
-  { id: 3, date: "2026-09-15", siteId: 3, category: "Tools Purchase", amount: 3200, paidBy: 9, description: "Hand tools replacement", approvedBy: null, remarks: "Awaiting department head review" },
-  { id: 4, date: "2026-09-15", siteId: 5, category: "Miscellaneous", amount: 500, paidBy: 7, description: "Site cleaning supplies", approvedBy: 3, remarks: "" },
-  { id: 5, date: "2026-09-16", siteId: 4, category: "Transport", amount: 950, paidBy: 9, description: "Material shifting between blocks", approvedBy: 5, remarks: "" },
+  { id: 1, date: "2026-09-14", siteId: 1, labourId: null, category: "Transport", amount: 1200, paidBy: 7, description: "Sand transport local trips", approvedBy: 3, status: "Approved", remarks: "" },
+  { id: 2, date: "2026-09-14", siteId: 1, labourId: null, category: "Food", amount: 850, paidBy: 7, description: "Labour tea and refreshment", approvedBy: 3, status: "Approved", remarks: "" },
+  { id: 3, date: "2026-09-15", siteId: 3, labourId: null, category: "Tools Purchase", amount: 3200, paidBy: 9, description: "Hand tools replacement", approvedBy: null, status: "Pending", remarks: "Awaiting department head review" },
+  { id: 4, date: "2026-09-15", siteId: 5, labourId: null, category: "Miscellaneous", amount: 500, paidBy: 7, description: "Site cleaning supplies", approvedBy: 3, status: "Approved", remarks: "" },
+  { id: 5, date: "2026-09-16", siteId: 4, labourId: null, category: "Transport", amount: 950, paidBy: 9, description: "Material shifting between blocks", approvedBy: 5, status: "Approved", remarks: "" },
+  { id: 6, date: "2026-08-28", siteId: 1, labourId: 1, category: "Labour Welfare", amount: 1800, paidBy: 6, description: "First-aid and medicine for Suresh Rout", approvedBy: null, status: "Pending", remarks: "" },
 ];
 
 /* Tools tracking — Phase 1 text entry per site */
