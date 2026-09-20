@@ -31,6 +31,17 @@ function validateSiteForm(values, editingId) {
   return errs;
 }
 
+/* Level >= 3 creators (PM/PE) only see sites listed in their siteIds, so give them the site they just created. */
+function grantSiteToCreator(user, siteId) {
+  if (!user) return false;
+  const lvl = Auth.roleLevel(user);
+  if (!isFinite(lvl) || lvl < 3) return false;
+  if (!Array.isArray(user.siteIds)) user.siteIds = [];
+  if (user.siteIds.includes(siteId)) return false;
+  user.siteIds.push(siteId);
+  return true;
+}
+
 function canEditSite(site) {
   return !!site && can("addSite") && scopedSiteIds().includes(site.id);
 }
@@ -268,6 +279,7 @@ function bindSiteForm(s) {
     } else {
       const site = { id: Store.nextId(SITES), ...rec };
       SITES.push(site);
+      grantSiteToCreator(currentUser(), site.id);
       AUDIT_LOG.push({ id: Store.nextId(AUDIT_LOG), timestamp: nowStamp(), userId: state.currentUserId, action: "Site Created", details: `${site.name} created` });
       showToast("Site created");
       render();

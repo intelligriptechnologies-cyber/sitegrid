@@ -38,10 +38,20 @@ Then visit the printed local URL.
 | `core/login.js` | Login screen rendering and interaction (user picker, mobile input, OTP) |
 | `core/store.js` | localStorage persistence layer for the data tables |
 | `core/ui.js` | Shared UI kit: searchable/paginated table host (10/20/50, pager top and bottom), form and confirm dialogs, tabs, active switch, image upload helper |
+| `core/mapping.js` | Labour-site many-to-many mapping helpers and biometric hash/duplicate lookup |
+| `pages/sites.js` | Sites & Projects page: compact cards, View/Edit popup with Manpower Config tab |
+| `pages/manpower.js` | Manpower page: table with filters, add/edit dialog (Details, Biometric Data, Mapped Sites tabs) |
 | `pages/users.js` | Users & Roles page: Users CRUD and Roles CRUD (Table/Grid views) |
+| `tests/manpower.test.js` | Manpower validation, filter and delete-guard tests (`node tests/manpower.test.js`) |
 | `tests/phase1.test.js` | Phase 1 spec tests (run with `node tests/phase1.test.js`) |
 | `tests/ui.test.js` | Pure-helper tests for `core/ui.js` (`node tests/ui.test.js`) |
 | `tests/users.test.js` | User and role form validation tests (`node tests/users.test.js`) |
+
+## Sites & Manpower behavior
+- Manpower table: Name, Phone, Skill, Wage/day, Site(s) (or Unmapped), Biometric image count, Approval tag, Status switch, edit/delete actions. Toolbar filters: Active only, Site dropdown, Show unmapped manpower (compose with search).
+- Add/Edit dialog tabs: Details (Aadhaar 12 digits, unique among non-rejected; approvers create Approved+active, others create Pending+inactive with an approval request), Biometric Data (multiple thumb-impression images, image files up to 1 MB, unique across all manpower, duplicate error names the owner), Mapped Sites (many-to-many site mapping).
+- Only approved manpower can be activated. Delete is blocked when the manpower has attendance, wage or approval records (deactivate instead); otherwise it also removes the site mappings and biometric images.
+- Project Managers/Engineers who create a site are automatically given access to it.
 
 ## Users & Roles behavior
 

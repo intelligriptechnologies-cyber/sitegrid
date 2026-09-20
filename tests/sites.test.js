@@ -40,3 +40,14 @@ test("area must be > 0", () => {
   assert.ok(run({ ...ok, areaSqft: -5 }).areaSqft);
   assert.deepStrictEqual(run({ ...ok, areaSqft: "" }), {});
 });
+
+test("grantSiteToCreator: level >= 3 creators get the new site id, others do not", () => {
+  const g = loadCtx(["data.js", "core/store.js", "core/ui.js", "core/auth.js", "core/mapping.js", "pages/sites.js"]);
+  g(`var pm = { roleId: 3, siteIds: [1] }, admin = { roleId: 0, siteIds: [] }, head = { roleId: 2, siteIds: [] };`);
+  assert.strictEqual(g("grantSiteToCreator(pm, 9)"), true);
+  assert.deepStrictEqual(JSON.parse(g("JSON.stringify(pm.siteIds)")), [1, 9]);
+  assert.strictEqual(g("grantSiteToCreator(pm, 9)"), false); // no duplicate
+  assert.strictEqual(g("grantSiteToCreator(admin, 9)"), false);
+  assert.strictEqual(g("grantSiteToCreator(head, 9)"), false);
+  assert.deepStrictEqual(JSON.parse(g("JSON.stringify(admin.siteIds)")), []);
+});
