@@ -96,7 +96,7 @@ function renderDeptSwitch() {
     depts.map((d) => `<option value="${d.id}" ${d.id === state.deptId ? "selected" : ""}>${d.name}</option>`).join("");
   sel.value = state.deptId == null ? "" : String(state.deptId);
   sel.disabled = !all && depts.length <= 1;
-  sel.onchange = (e) => { state.deptId = e.target.value === "" ? null : Number(e.target.value); render(); };
+  sel.onchange = (e) => { state.deptId = e.target.value === "" ? null : Number(e.target.value); Session.save(state.currentUserId, state.deptId); render(); };
   document.getElementById("userChip").textContent = `${u.name} · ${roleName(u.roleId)}`;
 }
 
@@ -991,13 +991,15 @@ document.getElementById("menuToggle").addEventListener("click", () => {
   document.getElementById("sidebar").classList.toggle("open", state.sidebarOpen);
 });
 document.getElementById("logoutBtn").addEventListener("click", logout);
-document.getElementById("deptSelect").addEventListener("change", () => Session.save(state.currentUserId, state.deptId));
 
 function boot() {
   Store.load();
   const s = Session.load();
   const user = s && byId(USERS, s.userId);
-  if (Auth.canSignIn(user)) { hideLogin(); startSession(user, s.deptId); }
+  if (Auth.canSignIn(user)) {
+    const ok = s.deptId == null ? Auth.isAllDeptRole(user) : Auth.allowedDepartments(user).some((d) => d.id === s.deptId);
+    hideLogin(); startSession(user, ok ? s.deptId : undefined);
+  }
   else showLogin((u) => startSession(u));
 }
 boot();
