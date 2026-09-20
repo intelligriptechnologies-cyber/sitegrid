@@ -1,7 +1,7 @@
 /* Persistence layer: mirrors the seed arrays from data.js into localStorage.
    Arrays are mutated in place so existing page code keeps working. */
 const Store = {
-  PREFIX: "sitegrid.v1.",
+  PREFIX: "sitegrid.v2.",
   storage: (() => { try { return typeof localStorage !== "undefined" ? localStorage : null; } catch (e) { return null; } })(),
   tables() {
     return { ROLES, DEPARTMENTS, USERS, CLIENTS, SITES, LABOUR, APPROVAL_REQUESTS, ATTENDANCE,

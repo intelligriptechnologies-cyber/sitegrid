@@ -279,61 +279,6 @@ function showAddDepartmentModal() {
 }
 
 /* ============================================================
-   PAGE: USERS & ROLES
-   ============================================================ */
-function pageUsers() {
-  const canEdit = can("addEditUsers");
-  return `
-    <div class="page-head">
-      <div>
-        <div class="page-eyebrow">// ORGANISATION</div>
-        <div class="page-heading">Users &amp; Roles</div>
-        <div class="page-sub">Internal system users with role-based access levels.</div>
-      </div>
-      <button class="btn teal" ${canEdit ? "" : "disabled"} onclick="showToast('Demo: user creation form omitted — role matrix is the focus of this screen.')">+ New User</button>
-    </div>
-    <div class="panel">
-      <div class="panel-head"><div class="panel-title">Role Hierarchy</div></div>
-      <div class="panel-body flush table-wrap">
-        <table>
-          <thead><tr><th>Level</th><th>Role</th><th>Add Site</th><th>Approve Labour</th><th>Mark Attendance</th><th>Update Wages</th><th>View Reports</th></tr></thead>
-          <tbody>
-            ${ROLES.map((r) => `<tr>
-              <td class="text-mono">L${r.level}</td>
-              <td>${r.name}</td>
-              <td>${r.perms.includes("addSite") ? "Yes" : "No"}</td>
-              <td>${r.perms.includes("approveLabour") ? "Yes" : "No"}</td>
-              <td>${r.perms.includes("markAttendance") ? "Yes" : "No"}</td>
-              <td>${r.perms.includes("updateWagePayment") ? "Yes" : "No"}</td>
-              <td>${r.perms.includes("viewAllReports") ? "All" : r.perms.includes("viewDeptReports") ? "Department" : "Assigned Site"}</td>
-            </tr>`).join("")}
-          </tbody>
-        </table>
-      </div>
-    </div>
-    <div class="panel">
-      <div class="panel-head"><div class="panel-title">System Users (${USERS.length})</div></div>
-      <div class="panel-body flush table-wrap">
-        <table>
-          <thead><tr><th>Name</th><th>Mobile</th><th>Designation</th><th>Department</th><th>Role</th><th>Sites</th><th>Status</th></tr></thead>
-          <tbody>
-            ${USERS.map((u) => `<tr>
-              <td>${u.name}</td>
-              <td class="text-mono">${u.mobile}</td>
-              <td>${u.designation}</td>
-              <td>${u.departmentIds.length ? u.departmentIds.map(deptName).join(", ") : "All"}</td>
-              <td>${roleName(u.roleId)}</td>
-              <td class="dim">${u.siteIds.length ? u.siteIds.map(siteName).join(", ") : "—"}</td>
-              <td><span class="badge-dot ${u.active ? "active" : "inactive"}"></span>${u.active ? "Active" : "Inactive"}</td>
-            </tr>`).join("")}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  `;
-}
-
-/* ============================================================
    PAGE: SITES
    ============================================================ */
 function pageSites() {
