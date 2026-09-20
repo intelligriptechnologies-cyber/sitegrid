@@ -7,6 +7,7 @@
   --line: #dbe6e5;
   --line-soft:#e9f0ef;
   --ink:#0b1615;
+  --sidebar-bg:#454545;
   --ink-dim:#5c6d6b;
   --ink-faint:#93a3a1;
   --teal:#0aa896;
@@ -44,7 +45,7 @@ body{
 .sidebar{
   width:250px;
   flex:none;
-  background:var(--ink);
+  background:var(--sidebar-bg);
   color:var(--white);
   display:flex;
   flex-direction:column;

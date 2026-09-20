@@ -36,8 +36,8 @@ const NAV = [
     { id: "dashboard", label: "Dashboard", icon: "01" },
   ]},
   { group: "Organisation", items: [
-    { id: "departments", label: "Departments", icon: "02" },
-    { id: "users", label: "Users & Roles", icon: "03" },
+    { id: "departments", label: "Departments", icon: "02", adminOnly: true },
+    { id: "users", label: "Users & Roles", icon: "03", adminOnly: true },
   ]},
   { group: "Operations", items: [
     { id: "sites", label: "Sites & Projects", icon: "04" },
@@ -67,15 +67,23 @@ function badgeForNav(id) {
   return null;
 }
 
+function navVisible(routeId) {
+  const item = NAV.flatMap((g) => g.items).find((i) => i.id === routeId);
+  if (!item) return false;
+  return !item.adminOnly || Auth.isAllDeptRole(currentUser());
+}
+
 function renderNav() {
   const nav = document.getElementById("nav");
   nav.innerHTML = "";
   NAV.forEach((group) => {
+    const visible = group.items.filter((i) => navVisible(i.id));
+    if (!visible.length) return;
     const label = document.createElement("div");
     label.className = "nav-group-label";
     label.textContent = group.group;
     nav.appendChild(label);
-    group.items.forEach((item) => {
+    visible.forEach((item) => {
       const el = document.createElement("div");
       el.className = "nav-item" + (state.route === item.id ? " active" : "");
       const badge = badgeForNav(item.id);
@@ -129,7 +137,7 @@ function pageDashboard() {
   const pendingWage = WAGES.filter((w) => scoped.includes(w.siteId) && w.status !== "Paid").reduce((s, w) => s + w.balancePayable, 0);
   const totalExpense = EXPENSES.filter((e) => scoped.includes(e.siteId)).reduce((s, e) => s + e.amount, 0);
 
-  const deptSummary = DEPARTMENTS.map((d) => {
+  const deptSummary = DEPARTMENTS.filter((d) => state.deptId == null || d.id === state.deptId).map((d) => {
     const siteCount = SITES.filter((s) => s.departmentId === d.id).length;
     const labourCount = LABOUR.filter((l) => SITES.find((s) => s.id === l.siteId && s.departmentId === d.id)).length;
     return { d, siteCount, labourCount };
@@ -140,7 +148,7 @@ function pageDashboard() {
       <div>
         <div class="page-eyebrow">// COMMAND OVERVIEW</div>
         <div class="page-heading">Dashboard</div>
-        <div class="page-sub">Signed in as ${currentUser().name} · ${currentRole().name}${currentRole().id >= 2 && currentRole().id !== 1 && currentUser().departmentId ? " · " + deptName(currentUser().departmentId) : ""}</div>
+        <div class="page-sub">Signed in as ${currentUser().name} · ${currentRole().name}${state.deptId != null ? " · " + deptName(state.deptId) : ""}</div>
       </div>
     </div>
 
@@ -211,7 +219,7 @@ function pageDepartments() {
       ${DEPARTMENTS.map((d) => {
         const sites = SITES.filter((s) => s.departmentId === d.id);
         const labour = LABOUR.filter((l) => sites.some((s) => s.id === l.siteId));
-        const users = USERS.filter((u) => u.departmentId === d.id);
+        const users = USERS.filter((u) => u.departmentIds.includes(d.id));
         return `<div class="site-card">
           <div class="site-card-head">
             <div>
@@ -302,7 +310,7 @@ function pageUsers() {
               <td>${u.name}</td>
               <td class="text-mono">${u.mobile}</td>
               <td>${u.designation}</td>
-              <td>${u.departmentId ? deptName(u.departmentId) : "—"}</td>
+              <td>${u.departmentIds.length ? u.departmentIds.map(deptName).join(", ") : "All"}</td>
               <td>${roleName(u.roleId)}</td>
               <td class="dim">${u.siteIds.length ? u.siteIds.map(siteName).join(", ") : "—"}</td>
               <td><span class="badge-dot ${u.active ? "active" : "inactive"}"></span>${u.active ? "Active" : "Inactive"}</td>
@@ -958,8 +966,6 @@ const PAGES = {
   reports: { title: "Reports", render: pageReports },
   audit: { title: "Audit Log", render: pageAudit },
 };
-
-const navVisible = () => true; // TEMP stub; replaced in Task 4
 
 function render() {
   Store.save();
