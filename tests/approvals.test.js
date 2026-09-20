@@ -155,3 +155,25 @@ test("applyApprovalFilters: visibility, filters, newest first", () => {
   assert.deepStrictEqual(PJ(`applyApprovalFilters(${PU(7)}, 2, {}).map(r=>r.id)`).sort((a, b) => a - b), [1, 2, 5, 8, 9, 11]);
   assert.strictEqual(PJ(`applyApprovalFilters(${PU(7)}, null, {q:"zzzz-none"}).length`), 0);
 });
+
+test("approval edit view renders Details, Attachments and History tabs for a new request", () => {
+  getPage(`
+    globalThis.state = { approvalEdit: "new", currentUserId: 7, deptId: null };
+    globalThis.byId = (rows, id) => rows.find((row) => row.id === id);
+    globalThis.currentUser = () => USERS.find((u) => u.id === state.currentUserId);
+    globalThis.currentRole = () => ROLES.find((r) => r.id === currentUser().roleId);
+    globalThis.userName = (id) => (USERS.find((u) => u.id === id) || {}).name || "—";
+    globalThis.siteName = (id) => (SITES.find((s) => s.id === id) || {}).name || "—";
+    globalThis.labourName = (id) => (LABOUR.find((l) => l.id === id) || {}).name || "—";
+    globalThis.scopedSiteIds = () => SITES.map((s) => s.id);
+    globalThis.nowStamp = () => "2026-09-20 10:00";
+    globalThis.esc = UI.esc;
+  `);
+  const html = getPage("pageApprovals()");
+  assert.match(html, /Back to list/);
+  assert.match(html, /Details/);
+  assert.match(html, /Attachments/);
+  assert.match(html, /History/);
+  assert.match(html, /data-approval-form/);
+  assert.match(html, /Save the request first/);
+});

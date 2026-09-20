@@ -1,5 +1,5 @@
-/* Approvals list page: role-scoped requests, filter bar (applies on Search), status chips, kit table, decisions.
-   applyApprovalFilters is a pure helper (no DOM). The add/edit page arrives in a later task (openApprovalEdit). */
+/* Approvals list and in-page editor: role-scoped filters, decisions, attachments, and history.
+   applyApprovalFilters is a pure helper (no DOM). */
 
 /* draft = what the inputs show; applied = what the table uses (copied on Search/Enter). */
 const approvalsFilters = { draft: { requestedBy: "", siteId: "", status: "", q: "" }, applied: { requestedBy: "", siteId: "", status: "", q: "" } };
@@ -15,10 +15,11 @@ function applyApprovalFilters(user, deptId, applied) {
 const approvalStatusKind = (s) => (s === "Approved" ? "ok" : s === "Rejected" ? "danger" : s === "Review Requested" ? "neutral" : "warn");
 
 function openApprovalEdit(idOrNew) {
+  approvalEditState.attachmentError = "";
   state.approvalEdit = idOrNew == null || idOrNew === "new" ? "new" : idOrNew;
   render();
 }
-function closeApprovalEdit() { state.approvalEdit = null; render(); }
+function closeApprovalEdit() { approvalEditState.attachmentError = ""; state.approvalEdit = null; render(); }
 
 function lastApprovalDecision(r) {
   return (r.history || []).filter((h) => h.action !== "Created").slice(-1)[0] || null;
@@ -98,12 +99,197 @@ function setApprovalStatusChip(status) {
   render();
 }
 
-function pageApprovals() {
-  if (state.approvalEdit != null) {
-    return `<div class="page-head"><div><div class="page-eyebrow">// OPERATIONS</div><div class="page-heading">Approvals</div></div>
-      <button class="btn secondary" onclick="closeApprovalEdit()">Back</button></div>
-      <div class="section-note">Edit page — Task 3 (request ${esc(state.approvalEdit)})</div>`;
+const approvalEditState = { attachmentError: "" };
+
+function currentApprovalRequest() {
+  return state.approvalEdit === "new" || state.approvalEdit == null ? null : byId(APPROVAL_REQUESTS, Number(state.approvalEdit));
+}
+
+function approvalField(name, label, control, full) {
+  return `<div class="field${full ? " full" : ""}" data-field="${esc(name)}"><label>${esc(label)}</label>${control}<div class="field-error" data-err="${esc(name)}"></div></div>`;
+}
+
+function approvalEditDetailsHtml(req, editable) {
+  const v = req || { type: REQUEST_TYPES[0], priority: "Normal", requestDate: nowStamp().slice(0, 10) };
+  const dis = editable ? "" : " disabled";
+  const opt = (value, label, selected) => `<option value="${esc(value)}" ${String(value) === String(selected ?? "") ? "selected" : ""}>${esc(label)}</option>`;
+  const type = `<select name="type" onchange="updateApprovalTypeFields()"${dis}>${REQUEST_TYPES.map((x) => opt(x, x, v.type)).join("")}</select>`;
+  const sites = SITES.filter((s) => scopedSiteIds().includes(s.id));
+  const site = `<select name="siteId"${dis}><option value="">Select site...</option>${sites.map((s) => opt(s.id, s.name, v.siteId)).join("")}</select>`;
+  const priority = `<select name="priority"${dis}>${["Normal", "Urgent"].map((x) => opt(x, x, v.priority || "Normal")).join("")}</select>`;
+  const labour = `<select name="labourId"${dis}><option value="">No linked labour</option>${LABOUR.map((l) => opt(l.id, l.name, v.labourId)).join("")}</select>`;
+  const input = (name, kind, value, extra) => `<input name="${name}" type="${kind}" value="${esc(value ?? "")}"${extra || ""}${dis}>`;
+  const note = !editable ? `<div class="section-note approval-decision-note">This request is read-only. ${Approvals.canDecide(currentUser(), req) ? "You can decide it below." : "Only its requester can make changes."}</div>` : "";
+  const actions = editable ? `<div class="approval-form-actions"><button type="submit" class="btn secondary">Save</button><button type="button" class="btn teal" onclick="saveApprovalRequest(true)">Save &amp; Back</button></div>` : "";
+  return `${note}<form class="ui-form approval-edit-form" data-approval-form onsubmit="event.preventDefault(); saveApprovalRequest(false)" novalidate><div class="form-grid">
+    ${approvalField("type", "Type *", type)}
+    ${approvalField("title", "Title *", input("title", "text", v.title, " maxlength=\"120\""))}
+    ${approvalField("siteId", "Site *", site)}
+    ${approvalField("priority", "Priority", priority)}
+    <div data-approval-conditional="amount"${["Petty Cash", "Material"].includes(v.type) ? "" : " hidden"}>${approvalField("amount", "Amount", input("amount", "number", v.amount, " min=\"0\" step=\"0.01\""))}</div>
+    <div data-approval-conditional="labour"${v.type === "Manpower Onboarding" ? "" : " hidden"}>${approvalField("labourId", "Linked labour", labour)}</div>
+    ${approvalField("description", "Description *", `<textarea name="description" rows="5"${dis}>${esc(v.description || "")}</textarea>`, true)}
+  </div><div class="field-error ui-form-error" data-approval-form-error></div>${actions}</form>`;
+}
+
+function approvalFileSize(bytes) {
+  const n = Number(bytes) || 0;
+  return n < 1024 ? `${n} B` : n < 1048576 ? `${(n / 1024).toFixed(1)} KB` : `${(n / 1048576).toFixed(1)} MB`;
+}
+
+function approvalAttachmentsHtml(req, editable) {
+  if (!req) return `<div class="approval-empty-tab"><strong>Save the request first</strong><div class="dim">Attachments become available after the request has been created.</div></div>`;
+  const files = req.attachments || [];
+  const list = files.length ? `<div class="approval-attachments">${files.map((a) => {
+    const image = /^image\//.test(a.type || "");
+    const canDelete = editable && req.requestedBy === currentUser().id;
+    return `<div class="approval-attachment">${image ? `<img class="approval-attachment-thumb" src="${esc(a.dataUrl || "")}" alt="${esc(a.name)} thumbnail">` : `<div class="approval-file-icon">FILE</div>`}<div class="approval-attachment-info"><strong>${esc(a.name)}</strong><div class="dim">${esc(approvalFileSize(a.size))} · ${esc(userName(a.by))} · ${esc(String(a.at || "").slice(0, 16))}</div></div><a class="btn secondary small" href="${esc(a.dataUrl || "")}" download="${esc(a.name)}">Download</a>${canDelete ? `<button type="button" class="icon-btn danger" title="Delete attachment" onclick="removeApprovalAttachment(${Number(a.id)})">✕</button>` : ""}</div>`;
+  }).join("")}</div>` : `<div class="ui-empty">No attachments yet</div>`;
+  return `<div class="approval-upload${editable ? "" : " disabled"}" ondragover="event.preventDefault()" ondrop="addApprovalDroppedFiles(event)"><input id="approvalAttachmentInput" type="file" multiple${editable ? "" : " disabled"} onchange="addApprovalFiles(this.files)"><label for="approvalAttachmentInput">Drop files here or choose files</label><div class="dim">Images, PDF and Office documents · up to 1 MB each · maximum 5 files</div></div><div class="field-error approval-attachment-error">${esc(approvalEditState.attachmentError)}</div>${list}`;
+}
+
+function approvalHistoryHtml(req) {
+  if (!req || !(req.history || []).length) return `<div class="ui-empty">History starts after this request is saved</div>`;
+  const icon = { Created: "+", Edited: "✎", Approved: "✓", Rejected: "✕", "Review Requested": "↩", Resubmitted: "↻" };
+  return `<div class="approval-history">${req.history.slice().reverse().map((h) => `<div class="approval-history-item"><div class="approval-history-icon">${esc(icon[h.action] || "•")}</div><div><strong>${esc(h.action)}</strong><div class="dim">${esc(userName(h.by))} · ${esc(h.at)}</div>${h.remark ? `<div class="approval-history-remark">${esc(h.remark)}</div>` : ""}</div></div>`).join("")}</div>`;
+}
+
+function approvalEditHtml() {
+  const req = currentApprovalRequest();
+  if (state.approvalEdit !== "new" && !req) return `<div class="ui-empty">That approval request no longer exists.</div>`;
+  const editable = state.approvalEdit === "new" ? Approvals.canAdd(currentUser()) : Approvals.canEdit(currentUser(), req);
+  const title = req ? req.title : "New approval request";
+  const panel = req && Approvals.canDecide(currentUser(), req) ? `<div class="approval-decision-panel"><div><strong>Decision required</strong><div class="dim">You are authorized to decide this request.</div></div><div class="approval-panel-actions"><button class="btn teal small" onclick="decideApproval(${req.id}, 'approve')">Approve</button><button class="btn danger small" onclick="decideApproval(${req.id}, 'reject')">Reject</button><button class="btn secondary small" onclick="decideApproval(${req.id}, 'review')">Ask review</button></div></div>` : req && req.requestedBy === currentUser().id && ["Review Requested", "Rejected"].includes(req.status) ? `<div class="approval-decision-panel"><div><strong>${esc(req.status)}</strong><div class="dim">Update the request, then resubmit it for approval.</div></div><button class="btn teal small" onclick="resubmitApproval(${req.id})">Resubmit</button></div>` : "";
+  return `<div class="page-head"><div><div class="page-eyebrow">// OPERATIONS</div><div class="page-heading">${esc(title)}</div><div class="page-sub">${req ? `${esc(req.type)} · ${esc(req.status)}` : "Complete the details, then save your request."}</div></div><button class="btn secondary" onclick="closeApprovalEdit()">← Back to list</button></div>${panel}${UI.tabs("approval-edit", [{ key: "details", label: "Details", html: approvalEditDetailsHtml(req, editable) }, { key: "attachments", label: "Attachments", html: approvalAttachmentsHtml(req, editable) }, { key: "history", label: "History", html: approvalHistoryHtml(req) }], "details")}`;
+}
+
+function approvalAudit(action, details) {
+  AUDIT_LOG.push({ id: Store.nextId(AUDIT_LOG), timestamp: nowStamp(), userId: state.currentUserId, action, details });
+}
+
+function approvalFormError(form, name, message) {
+  const el = form.querySelector(`[data-err="${name}"]`);
+  if (el) el.textContent = message || "";
+}
+
+function approvalReadForm(form) {
+  const value = (name) => (form.elements[name] ? form.elements[name].value.trim() : "");
+  const type = value("type");
+  const amount = value("amount");
+  const labourId = value("labourId");
+  return {
+    type,
+    title: value("title"),
+    description: value("description"),
+    siteId: Number(value("siteId")) || null,
+    priority: value("priority") === "Urgent" ? "Urgent" : "Normal",
+    amount: ["Petty Cash", "Material"].includes(type) && amount !== "" ? Number(amount) : null,
+    labourId: type === "Manpower Onboarding" && labourId !== "" ? Number(labourId) : null,
+  };
+}
+
+function saveApprovalRequest(returnToList) {
+  const form = document.querySelector("[data-approval-form]");
+  if (!form) return;
+  const current = currentApprovalRequest();
+  const allowed = current ? Approvals.canEdit(currentUser(), current) : Approvals.canAdd(currentUser());
+  if (!allowed) { showToast("You cannot edit this request"); return; }
+  const values = approvalReadForm(form);
+  const errors = {
+    type: REQUEST_TYPES.includes(values.type) ? "" : "Select a request type",
+    title: values.title ? "" : "Title is required",
+    siteId: values.siteId && scopedSiteIds().includes(values.siteId) ? "" : "Select a site in your scope",
+    description: values.description ? "" : "Description is required",
+    amount: values.amount != null && (!Number.isFinite(values.amount) || values.amount < 0) ? "Enter a valid amount" : "",
+  };
+  Object.entries(errors).forEach(([name, message]) => approvalFormError(form, name, message));
+  const first = Object.values(errors).find(Boolean);
+  if (first) { const general = form.querySelector("[data-approval-form-error]"); if (general) general.textContent = "Please correct the highlighted fields."; return; }
+  const now = nowStamp();
+  let req = current;
+  if (!req) {
+    req = { id: Store.nextId(APPROVAL_REQUESTS), ...values, requestedBy: currentUser().id, requestDate: now.slice(0, 10), status: "Pending", approvedBy: null, decisionDate: null, attachments: [], history: [{ at: now, by: currentUser().id, action: "Created", remark: "" }] };
+    APPROVAL_REQUESTS.push(req);
+    approvalAudit("Approval Request Created", `${req.title} created`);
+  } else {
+    Object.assign(req, values);
+    (req.history = req.history || []).push({ at: now, by: currentUser().id, action: "Edited", remark: "" });
+    approvalAudit("Approval Request Edited", `${req.title} edited`);
   }
+  approvalEditState.attachmentError = "";
+  state.approvalEdit = returnToList ? null : req.id;
+  showToast(`Request ${esc(req.title)} saved`);
+  render();
+}
+
+function updateApprovalTypeFields() {
+  const form = document.querySelector("[data-approval-form]");
+  if (!form) return;
+  const type = form.elements.type.value;
+  form.querySelectorAll("[data-approval-conditional]").forEach((el) => {
+    const show = el.dataset.approvalConditional === "amount" ? ["Petty Cash", "Material"].includes(type) : type === "Manpower Onboarding";
+    el.hidden = !show;
+  });
+}
+
+function approvalReadFile(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("Could not read file"));
+    reader.onload = () => resolve(reader.result);
+    reader.readAsDataURL(file);
+  });
+}
+
+async function addApprovalFiles(files) {
+  const req = currentApprovalRequest();
+  if (!req || !Approvals.canEdit(currentUser(), req)) { approvalEditState.attachmentError = "You cannot change attachments on this request"; render(); return; }
+  const errors = [];
+  let added = 0;
+  for (const file of Array.from(files || [])) {
+    try {
+      const dataUrl = await approvalReadFile(file);
+      const r = Approvals.addAttachment(req, { name: file.name, type: file.type, size: file.size, dataUrl }, currentUser(), nowStamp());
+      if (r.ok) { added++; approvalAudit("Approval Attachment Added", `${req.title}: ${file.name}`); }
+      else errors.push(`${file.name}: ${r.error}`);
+    } catch (err) { errors.push(`${file.name}: ${err.message || "Could not read file"}`); }
+  }
+  approvalEditState.attachmentError = errors.join(" ");
+  if (added) showToast(`${added} attachment${added === 1 ? "" : "s"} added`);
+  render();
+}
+
+function addApprovalDroppedFiles(event) {
+  event.preventDefault();
+  addApprovalFiles(event.dataTransfer && event.dataTransfer.files);
+}
+
+function removeApprovalAttachment(attId) {
+  const req = currentApprovalRequest();
+  if (!req || req.requestedBy !== currentUser().id) { showToast("Only the requester can delete attachments"); return; }
+  const att = (req.attachments || []).find((a) => Number(a.id) === Number(attId));
+  const r = Approvals.removeAttachment(req, attId, currentUser());
+  if (!r.ok) { showToast(esc(r.error)); return; }
+  approvalAudit("Approval Attachment Removed", `${req.title}: ${att ? att.name : "attachment"}`);
+  approvalEditState.attachmentError = "";
+  showToast("Attachment removed");
+  render();
+}
+
+function resubmitApproval(reqId) {
+  const req = byId(APPROVAL_REQUESTS, reqId);
+  if (!req) return;
+  UI.confirm(`Resubmit "${req.title}" for approval?`, (remark) => {
+    const r = Approvals.resubmit(req, currentUser(), remark, nowStamp());
+    if (!r.ok) { showToast(esc(r.error)); return; }
+    approvalAudit("Approval Request Resubmitted", `${req.title}${remark ? ` - ${remark}` : ""}`);
+    showToast("Request resubmitted");
+    render();
+  }, { title: "Resubmit request", yesLabel: "Resubmit", reason: { label: "Remark (optional)", required: false } });
+}
+
+function pageApprovals() {
+  if (state.approvalEdit != null) return approvalEditHtml();
   const user = currentUser();
   const level = Auth.roleLevel(user);
   const note = level >= 3 ? "Showing your requests only" : Approvals.showActionColumn(user) ? `Approving as ${currentRole().name}` : "";
