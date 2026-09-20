@@ -59,7 +59,7 @@ const NAV = [
 
 function badgeForNav(id) {
   if (id === "approvals") {
-    const n = APPROVAL_REQUESTS.filter((a) => a.status === "Pending").length;
+    const n = Approvals.visibleRequests(currentUser(), state.deptId).filter((a) => a.status === "Pending" || a.status === "Resubmitted").length;
     return n > 0 ? n : null;
   }
   if (id === "expenses") {
@@ -150,7 +150,7 @@ function pageDashboard() {
   const scoped = scopedSiteIds();
   const activeSites = SITES.filter((s) => scoped.includes(s.id) && s.status === "Active").length;
   const manpower = LABOUR.filter((l) => labourInSites(l, scoped) && l.approvalStatus === "Approved").length;
-  const pendingApprovals = APPROVAL_REQUESTS.filter((a) => a.status === "Pending" && labourInSites(byId(LABOUR, a.labourId), scoped)).length;
+  const pendingApprovals = Approvals.visibleRequests(currentUser(), state.deptId).filter((a) => (a.status === "Pending" || a.status === "Resubmitted") && (a.siteId == null || scoped.includes(a.siteId))).length;
   const today = "2026-09-16";
   const todayAttendance = ATTENDANCE.filter((a) => a.date === today && scoped.includes(a.siteId));
   const present = todayAttendance.filter((a) => a.status === "Present").length;
@@ -291,37 +291,39 @@ function showAddDepartmentModal() {
    PAGE: APPROVALS
    ============================================================ */
 function pageApprovals() {
-  const canApprove = can("approveLabour");
-  const rows = APPROVAL_REQUESTS.slice().reverse();
+  const user = currentUser();
+  const showAction = Approvals.showActionColumn(user);
+  const rows = Approvals.visibleRequests(user, state.deptId).slice().reverse();
   return `
     <div class="page-head">
       <div>
         <div class="page-eyebrow">// OPERATIONS</div>
-        <div class="page-heading">Labour Onboarding Approvals</div>
+        <div class="page-heading">Approvals</div>
         <div class="page-sub">Approval authority: Super Admin, Business Owner, or Department Head.</div>
       </div>
     </div>
-    ${!canApprove ? `<div class="section-note">Viewing as ${esc(currentRole().name)} — approve/reject actions require Level 0-2 access. Table is read-only.</div>` : ""}
+    ${!showAction ? `<div class="section-note">Viewing as ${esc(currentRole().name)} — approve/reject actions require Level 0-2 access. Table is read-only.</div>` : ""}
     <div class="panel">
       <div class="panel-body flush table-wrap">
         <table>
-          <thead><tr><th>Labour</th><th>Site</th><th>Requested By</th><th>Request Date</th><th>Status</th><th>Decision</th>${canApprove ? "<th>Action</th>" : ""}</tr></thead>
+          <thead><tr><th>Request</th><th>Type</th><th>Site</th><th>Requested By</th><th>Request Date</th><th>Status</th><th>Decision</th>${showAction ? "<th>Action</th>" : ""}</tr></thead>
           <tbody>
             ${rows.map((a) => {
-              const l = byId(LABOUR, a.labourId);
-              const tag = a.status === "Approved" ? "ok" : a.status === "Pending" ? "warn" : "danger";
+              const site = byId(SITES, a.siteId);
+              const tag = a.status === "Approved" ? "ok" : a.status === "Rejected" ? "danger" : "warn";
               return `<tr>
-                <td>${esc(l.name)}<div class="dim" style="font-size:11px;">Aadhaar ${esc(l.aadhaar)}</div></td>
-                <td>${esc(labourSiteNames(l.id))}</td>
+                <td>${esc(a.title)}</td>
+                <td>${esc(a.type)}</td>
+                <td>${esc(site ? site.name : "—")}</td>
                 <td>${esc(userName(a.requestedBy))}</td>
                 <td class="text-mono">${esc(a.requestDate)}</td>
                 <td><span class="tag ${tag}">${esc(a.status)}</span></td>
                 <td class="dim">${a.decisionDate ? `${esc(userName(a.approvedBy))} · ${esc(a.decisionDate)}` : "—"}${a.rejectionReason ? `<div style="margin-top:4px;max-width:220px;">${esc(a.rejectionReason)}</div>` : ""}</td>
-                ${canApprove ? `<td>${a.status === "Pending" ? `
+                ${showAction ? `<td>${Approvals.canDecide(user, a) ? `
                   <div style="display:flex;gap:6px;">
-                    <button class="btn teal small" onclick="decideApproval(${a.id}, 'Approved')">Approve</button>
-                    <button class="btn danger small" onclick="decideApproval(${a.id}, 'Rejected')">Reject</button>
-                  </div>` : `<span class="faint text-mono">Closed</span>`}</td>` : ""}
+                    <button class="btn teal small" onclick="decideApproval(${a.id}, 'approve')">Approve</button>
+                    <button class="btn danger small" onclick="decideApproval(${a.id}, 'reject')">Reject</button>
+                  </div>` : `<span class="faint text-mono">${a.status === "Approved" || a.status === "Rejected" ? "Closed" : "—"}</span>`}</td>` : ""}
               </tr>`;
             }).join("")}
           </tbody>
@@ -331,22 +333,20 @@ function pageApprovals() {
   `;
 }
 
-function decideApproval(reqId, decision) {
+/* Temporary until the Approvals page is rebuilt: approve/reject through Approvals.decide. */
+function decideApproval(reqId, action) {
   const req = byId(APPROVAL_REQUESTS, reqId);
-  const labour = byId(LABOUR, req.labourId);
-  req.status = decision;
-  req.approvedBy = state.currentUserId;
-  req.decisionDate = nowStamp();
-  if (decision === "Rejected") {
-    const reason = prompt("Reason for rejection:", "Does not meet onboarding criteria");
-    req.rejectionReason = reason || "Rejected by approver";
-    labour.rejectionReason = req.rejectionReason;
-  }
-  labour.approvalStatus = decision;
-  labour.active = decision === "Approved";
-  AUDIT_LOG.push({ id: Store.nextId(AUDIT_LOG), timestamp: nowStamp(), userId: state.currentUserId, action: `Labour ${decision}`, details: `${labour.name} ${decision.toLowerCase()} by ${currentUser().name}` });
-  showToast(`Labour ${decision.toLowerCase()}`);
-  render();
+  const finish = (remark) => {
+    const r = Approvals.decide(req, action, currentUser(), remark, nowStamp());
+    if (!r.ok) { showToast(r.error); return; }
+    const label = action === "approve" ? "approved" : "rejected";
+    const labour = req.labourId != null ? byId(LABOUR, req.labourId) : null;
+    AUDIT_LOG.push({ id: Store.nextId(AUDIT_LOG), timestamp: nowStamp(), userId: state.currentUserId, action: `Request ${label}`, details: `${req.title} ${label} by ${currentUser().name}${labour ? ` (${labour.name})` : ""}` });
+    showToast(`Request ${label}`);
+    render();
+  };
+  if (action === "reject") UI.confirm(`Reject "${req.title}"?`, finish, { title: "Reject request", yesLabel: "Reject", reason: { label: "Reason for rejection", required: true } });
+  else finish("");
 }
 
 /* ============================================================

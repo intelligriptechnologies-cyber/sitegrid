@@ -2,7 +2,7 @@
    Arrays are mutated in place so existing page code keeps working. */
 const Store = {
   // NOTE: bump PREFIX whenever the seed data shape changes; old-prefix keys are purged on load/reset.
-  PREFIX: "sitegrid.v2.",
+  PREFIX: "sitegrid.v3.",
   storage: (() => { try { return typeof localStorage !== "undefined" ? localStorage : null; } catch (e) { return null; } })(),
   tables() {
     return { ROLES, DEPARTMENTS, USERS, CLIENTS, SITES, LABOUR, APPROVAL_REQUESTS, ATTENDANCE,

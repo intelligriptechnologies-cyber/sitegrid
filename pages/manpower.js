@@ -259,7 +259,8 @@ function bindLabourForm(l) {
     LABOUR.push(row);
     if (vals.siteIds.length) mapLabourToSites(id, vals.siteIds);
     if (!approver) {
-      APPROVAL_REQUESTS.push({ id: Store.nextId(APPROVAL_REQUESTS), labourId: id, requestedBy: state.currentUserId, requestDate: nowStamp(), approvedBy: null, decisionDate: null, status: "Pending" });
+      const stamp = nowStamp();
+      APPROVAL_REQUESTS.push({ id: Store.nextId(APPROVAL_REQUESTS), type: "Manpower Onboarding", title: `Onboard ${row.name}`, description: `Onboarding request for ${row.name}.`, siteId: vals.siteIds.length ? vals.siteIds[0] : null, labourId: id, amount: null, priority: "Normal", requestedBy: state.currentUserId, requestDate: stamp, status: "Pending", approvedBy: null, decisionDate: null, attachments: [], history: [{ at: stamp, by: state.currentUserId, action: "Created", remark: "" }] });
     }
     logLabourAudit("Labour Added", approver ? `${row.name} added` : `${row.name} submitted for approval`);
     showToast(approver ? `${esc(row.name)} added` : "Manpower submitted for approval");
