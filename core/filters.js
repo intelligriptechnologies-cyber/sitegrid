@@ -31,7 +31,7 @@ const Filters = (() => {
       const id = `flt-${fn}-${f.key}`;
       const call = `${fn}('${f.key}',this.value)`;
       if (f.type === "select") {
-        return `<div class="field"><label for="${e(id)}">${e(f.label)}</label><select id="${e(id)}" onchange="${e(call)}"><option value="">${e(f.allLabel || "All")}</option>${(f.options || []).map((o) =>
+        return `<div class="field"><label for="${e(id)}">${e(f.label)}</label><select id="${e(id)}" onchange="${e(call)}">${f.noAll ? "" : `<option value="">${e(f.allLabel || "All")}</option>`}${(f.options || []).map((o) =>
           `<option value="${e(o.value)}" ${String(o.value) === String(f.value ?? "") ? "selected" : ""}>${e(o.label)}</option>`).join("")}</select></div>`;
       }
       return `<div class="field"><label for="${e(id)}">${e(f.label)}</label><input id="${e(id)}" type="${f.type === "month" ? "month" : "date"}" value="${e(f.value ?? "")}" onchange="${e(call)}"></div>`;

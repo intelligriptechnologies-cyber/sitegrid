@@ -33,15 +33,23 @@ Then visit the printed local URL.
 | `index.html` | App shell — sidebar, topbar, content mount point |
 | `styles.css` | Full monochrome/teal design system |
 | `data.js` | All seed data (departments, sites, labour, attendance, wages, expenses, tools, safety equipment, materials, users, approvals, audit log) |
-| `app.js` | Routing, rendering, role-based access simulation, interactive demo actions |
+| `app.js` | Routing, rendering, role-based access simulation, dashboard, departments and audit log |
 | `core/auth.js` | User authentication, sign-in validation, OTP logic, role scope computation, and the `Session` (sessionStorage) helper |
 | `core/login.js` | Login screen rendering and interaction (user picker, mobile input, OTP) |
 | `core/store.js` | localStorage persistence layer for the data tables |
 | `core/ui.js` | Shared UI kit: searchable/paginated table host (10/20/50, pager top and bottom), form and confirm dialogs, tabs, active switch, image upload helper |
+| `core/export.js` | Export matrix builder plus PDF (jsPDF + autotable) and Excel (SheetJS) download; libraries load lazily from cdnjs on first export, falling back to CSV / a printable view |
+| `core/filters.js` | Shared filter bar, site → labour cascade and date-range helpers for the finance and reporting pages |
 | `core/mapping.js` | Labour-site many-to-many mapping helpers and biometric hash/duplicate lookup |
 | `pages/sites.js` | Sites & Projects page: compact cards, View/Edit popup with Manpower Config tab |
 | `pages/manpower.js` | Manpower page: table with filters, add/edit dialog (Details, Biometric Data, Mapped Sites tabs) |
 | `pages/users.js` | Users & Roles page: Users CRUD and Roles CRUD (Table/Grid views) |
+| `pages/wages.js` | Wages & Payments: payment ledger, add/edit dialog, compute-from-attendance |
+| `pages/expenses.js` | Petty Cash: approval workflow with reasons, filters and export |
+| `pages/resources.js` | Tools & Safety Equipment: per-site item lists with condition |
+| `pages/materials.js` | Materials: per-site log with category and date filters |
+| `pages/reports.js` | Reports catalog (8 reports) built by pure `buildReport` functions |
+| `tests/wages.test.js`, `tests/expenses.test.js`, `tests/resources.test.js`, `tests/reports.test.js`, `tests/export.test.js` | Phase 5 tests (`node tests/<name>.test.js`) |
 | `tests/manpower.test.js` | Manpower validation, filter and delete-guard tests (`node tests/manpower.test.js`) |
 | `tests/phase1.test.js` | Phase 1 spec tests (run with `node tests/phase1.test.js`) |
 | `tests/ui.test.js` | Pure-helper tests for `core/ui.js` (`node tests/ui.test.js`) |
@@ -67,6 +75,15 @@ Then visit the printed local URL.
 - **Roles**: Table or Grid view (toggle keeps the search text), own quick-search, "+ New Role". Each role has a name (unique, case-insensitive), a level (L0-L3) and a permission set; click a row or card to edit.
 - A role held by active users cannot be deactivated; you cannot edit your own role so it loses "Manage users & roles"; built-in roles (Super Admin to Project Engineer) cannot be deleted, custom unused roles can.
 - New roles and their permissions take effect immediately for users assigned to them (sidebar and buttons re-evaluate).
+
+## Wages, Petty Cash, Tools/Materials, Reports and Export
+
+- **Wages & Payments**: filters for Site → Labour (cascaded), payment date range, Month-Year, status and search; summary chips and footer totals. Payable = rate × (days present + ½ × half days); paid comes from a per-record payment ledger (record, edit or delete payments; overpayment is blocked), and status moves Pending → Partially Paid → Paid automatically. "Compute days from attendance" fills the form from marked attendance. One record per labour + site + month. Needs the *Update wage payment* permission; others get a read-only table with the payment history.
+- **Petty Cash**: same cascade and date/month filters plus approval status (Approved / Pending / Rejected), category and search. Own expenses can be edited or deleted until approved; approvers (*Approve labour* permission) can approve or reject with a required reason, never on their own expense. Editing a rejected expense resubmits it.
+- **Tools & Safety** and **Materials**: site-specific CRUD (needs *Add sites*). Tools/Safety are item rows (quantity, condition, remarks) with a Tools | Safety Equipment toggle and site filter; Materials adds category (client/company) and date/month filters.
+- **Reports**: catalog of eight reports (site summary, attendance summary, wage statement, petty cash summary, manpower headcount, material summary, approvals aging, labour approval) with the filters that apply to each, totals, and role/department scoping.
+- **Export**: every table above and every report has an Export menu (PDF / Excel) that exports the currently filtered rows with a title, generated-by/date and active-filter summary. The SheetJS and jsPDF libraries are loaded from cdnjs **only when you first export**, so the demo works offline until then; if they cannot load, Excel falls back to a CSV download and PDF to a printable view.
+- The data shape changed in this phase (`sitegrid.v5.` storage prefix); older saved data is discarded automatically on load.
 
 ## How to demo the role model
 
@@ -110,13 +127,13 @@ seeded/demoable.
 | 6 | Labour transfer between sites (6.4) | **Manpower** | Labour ID 5 (Dilip Pradhan) shows a Transfer column: Tower 1 → Tower 2 with date and mover |
 | 7 | Labour approval workflow (6.5) | **Approvals** | Role-scoped request log and in-page editor with Details, Attachments, and History tabs; attachments support images, PDF, and Office files (maximum 5 files, 1 MB each); approvers can approve, reject, or ask for review, and requesters can resubmit |
 | 8 | Daily attendance (6.6) | **Attendance** | Present / Absent / Half Day / Leave all represented across two dates, with check-in/out times and optional GPS; "Mark Attendance" form blocks duplicate (labour+site+date) entries |
-| 9 | Wage & payment tracking (6.7) | **Wages & Payments** | Pending / Partially Paid / Paid statuses, advance vs balance payable; "Mark Paid" action for Level 0–3 roles |
-| 10 | Petty expense tracking (6.8) | **Petty Expenses** | 5 categorised entries, one awaiting approval (`approvedBy: null`) to demonstrate the pending-review state described as future scope; "Add Expense" form |
-| 11 | Tools tracking, text entry (6.9) | **Tools & Safety** | Free-text tool inventory per site, matching the Phase 1 "text box" requirement exactly |
-| 12 | Safety equipment tracking, text entry (6.10) | **Tools & Safety** | Free-text safety equipment inventory per site, alongside tools |
-| 13 | Material tracking, client vs company (6.11) | **Materials** | 6 material entries split into Client Provided / Company Provided tables |
+| 9 | Wage & payment tracking (6.7) | **Wages & Payments** | Pending / Partially Paid / Paid statuses driven by a payment ledger, filters and PDF/Excel export |
+| 10 | Petty expense tracking (6.8) | **Petty Cash** | Categorised entries with Approved / Pending / Rejected states, approve/reject with reason, filters and export |
+| 11 | Tools tracking, text entry (6.9) | **Tools & Safety** | Per-site tool item list with quantity and condition, add/edit/delete |
+| 12 | Safety equipment tracking, text entry (6.10) | **Tools & Safety** | Per-site safety equipment items, alongside tools |
+| 13 | Material tracking, client vs company (6.11) | **Materials** | 6 material entries with Client / Company Provided filter, date filters and CRUD |
 | 14 | GPS capture for sites (6.12) | **Sites & Projects** | Every site card shows a numeric GPS chip; the New Site form requires lat/lng as numbers |
-| 15 | Dashboards & reports (6.13) | **Dashboard**, **Reports** | KPI tiles (active sites, manpower, pending approvals, today's attendance, wage outstanding, expense total), department summary, site-wise report table, labour approval report |
+| 15 | Dashboards & reports (6.13) | **Dashboard**, **Reports** | KPI tiles (active sites, manpower, pending approvals, today's attendance, wage outstanding, expense total), department summary, eight-report catalog with filters and PDF/Excel export |
 | 16 | Role-based access control (5.2) | All screens | `ACCESS_MATRIX` in `data.js` drives every enable/disable state; Departments and Users & Roles are hidden from non-admin roles; other restricted actions are disabled |
 | 17 | Audit trail (9.2) | **Audit Log**, **Dashboard** | Every interactive demo action (add labour, approve/reject, mark attendance, mark wage paid, add expense, add site/department) appends a real audit entry, on top of 9 pre-seeded historical entries |
 | 18 | Active/inactive status (6.1, 6.4) | **Users & Roles**, **Manpower** | Inactive user (Bikash Jena) and inactive/pending labour records both shown with status indicators |
@@ -143,10 +160,9 @@ seeded/demoable.
 - No backend server — all data and logic run client-side in the browser.
 - Authentication is via a demo login screen with hardcoded OTP (`1111`);
   not suitable for production.
-- Wage payable figures are pre-computed in the seed data rather than
-  derived live from every attendance row, to keep the dataset legible;
-  the "Mark Paid" action still updates state live to demonstrate the
-  workflow.
+- Seed wage days are pre-set rather than derived from every attendance
+  row, to keep the dataset legible; the wage form can compute days from
+  the attendance actually marked.
 - Items explicitly marked "Future Scope" in the BRD (biometric device
   integration, mobile GPS tracking, payroll automation, vendor
   management, client billing, document/photo upload, notifications,

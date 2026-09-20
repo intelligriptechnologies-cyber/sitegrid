@@ -289,59 +289,6 @@ function showAddDepartmentModal() {
 }
 
 /* ============================================================
-   PAGE: REPORTS
-   ============================================================ */
-function pageReports() {
-  const scoped = scopedSiteIds();
-  const bySite = SITES.filter((s) => scoped.includes(s.id)).map((s) => {
-    const labour = siteLabourIds(s.id).filter((lid) => byId(LABOUR, lid).approvalStatus === "Approved").length;
-    const att = ATTENDANCE.filter((a) => a.siteId === s.id);
-    const present = att.filter((a) => a.status === "Present").length;
-    const wageOutstanding = WAGES.filter((w) => w.siteId === s.id).reduce((sum, w) => sum + w.balancePayable, 0);
-    const expense = EXPENSES.filter((e) => e.siteId === s.id).reduce((sum, e) => sum + e.amount, 0);
-    return { s, labour, present, total: att.length, wageOutstanding, expense };
-  });
-  return `
-    <div class="page-head">
-      <div>
-        <div class="page-eyebrow">// INSIGHT</div>
-        <div class="page-heading">Reports</div>
-        <div class="page-sub">Site-wise manpower, attendance, wage, and expense summary within your scope.</div>
-      </div>
-    </div>
-    <div class="panel">
-      <div class="panel-body flush table-wrap">
-        <table>
-          <thead><tr><th>Site</th><th>Status</th><th>Manpower</th><th>Attendance Marked</th><th>Present</th><th>Wage Outstanding</th><th>Total Expense</th></tr></thead>
-          <tbody>
-            ${bySite.map((r) => `<tr>
-              <td>${esc(r.s.name)}</td>
-              <td><span class="tag ${r.s.status === "Active" ? "ok" : r.s.status === "Paused" ? "warn" : "neutral"}">${esc(r.s.status)}</span></td>
-              <td>${r.labour}</td>
-              <td>${r.total}</td>
-              <td>${r.present}</td>
-              <td>${currency(r.wageOutstanding)}</td>
-              <td>${currency(r.expense)}</td>
-            </tr>`).join("")}
-          </tbody>
-        </table>
-      </div>
-    </div>
-    <div class="panel">
-      <div class="panel-head"><div class="panel-title">Labour Approval Report</div></div>
-      <div class="panel-body flush table-wrap">
-        <table>
-          <thead><tr><th>Status</th><th>Count</th></tr></thead>
-          <tbody>
-            ${["Approved", "Pending", "Rejected"].map((st) => `<tr><td>${st}</td><td>${LABOUR.filter((l) => labourVisibleNow(l) && l.approvalStatus === st).length}</td></tr>`).join("")}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  `;
-}
-
-/* ============================================================
    PAGE: AUDIT LOG
    ============================================================ */
 function pageAudit() {
