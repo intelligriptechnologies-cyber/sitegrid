@@ -6,7 +6,7 @@ const Store = {
   storage: (() => { try { return typeof localStorage !== "undefined" ? localStorage : null; } catch (e) { return null; } })(),
   tables() {
     return { ROLES, DEPARTMENTS, USERS, CLIENTS, SITES, LABOUR, APPROVAL_REQUESTS, ATTENDANCE,
-             WAGES, EXPENSES, TOOLS, SAFETY_EQUIPMENT, MATERIALS, AUDIT_LOG };
+             LABOUR_SITES, BIOMETRICS, WAGES, EXPENSES, TOOLS, SAFETY_EQUIPMENT, MATERIALS, AUDIT_LOG };
   },
   /* Remove every "sitegrid.*" key that is not a current-prefix key (orphans from older shapes),
      or, when all=true, every current-prefix key too. Scans storage rather than known table names. */

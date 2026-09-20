@@ -50,13 +50,29 @@ const SITES = [
 const LABOUR = [
   { id: 1, name: "Suresh Rout", aadhaar: "234567890123", phone: "9556100001", address: "Village Balianta, Bhubaneswar", biometricRef: "BIO10001", category: "Skilled", skill: "Mason", wageRate: 750, siteId: 1, joiningDate: "2026-01-15", active: true, approvalStatus: "Approved" },
   { id: 2, name: "Bijay Kumar Sahoo", aadhaar: "234567890124", phone: "9556100002", address: "Village Balianta, Bhubaneswar", biometricRef: "BIO10002", category: "Skilled", skill: "Electrician", wageRate: 800, siteId: 1, joiningDate: "2026-01-15", active: true, approvalStatus: "Approved" },
-  { id: 3, name: "Manoranjan Behera", aadhaar: "234567890125", phone: "9556100003", address: "Village Tamando, Bhubaneswar", biometricRef: "", category: "Unskilled", skill: "Helper", wageRate: 450, siteId: 3, joiningDate: "2026-09-10", active: false, approvalStatus: "Pending" },
+  { id: 3, name: "Manoranjan Behera", aadhaar: "234567890125", phone: "9556100003", address: "Village Tamando, Bhubaneswar", biometricRef: "", category: "Unskilled", skill: "Helper", wageRate: 450, siteId: null, joiningDate: "2026-09-10", active: false, approvalStatus: "Pending" },
   { id: 4, name: "Ajay Nath", aadhaar: "234567890123", phone: "9556100004", address: "Village Balianta, Bhubaneswar", biometricRef: "", category: "Skilled", skill: "Mason", wageRate: 750, siteId: 2, joiningDate: "2026-09-05", active: false, approvalStatus: "Rejected", rejectionReason: "Duplicate Aadhaar number — already registered as Suresh Rout (Labour ID 1)." },
   { id: 5, name: "Dilip Pradhan", aadhaar: "234567890126", phone: "9556100005", address: "Village Khandagiri, Bhubaneswar", biometricRef: "BIO10005", category: "Skilled", skill: "Carpenter", wageRate: 700, siteId: 5, joiningDate: "2026-02-01", active: true, approvalStatus: "Approved", transferHistory: [{ fromSiteId: 1, toSiteId: 5, date: "2026-08-01", movedBy: 6 }] },
   { id: 6, name: "Chittaranjan Das", aadhaar: "234567890127", phone: "9556100006", address: "Village Infocity, Bhubaneswar", biometricRef: "BIO10006", category: "Skilled", skill: "Electrician", wageRate: 780, siteId: 3, joiningDate: "2026-03-01", active: true, approvalStatus: "Approved" },
   { id: 7, name: "Prakash Muduli", aadhaar: "234567890128", phone: "9556100007", address: "Village Puri Road, Puri", biometricRef: "", category: "Unskilled", skill: "Helper", wageRate: 420, siteId: 4, joiningDate: "2026-09-15", active: false, approvalStatus: "Pending" },
   { id: 8, name: "Golak Bihari Jena", aadhaar: "234567890129", phone: "9556100008", address: "Village Balianta, Bhubaneswar", biometricRef: "BIO10008", category: "Skilled", skill: "Mason", wageRate: 760, siteId: 1, joiningDate: "2026-04-12", active: true, approvalStatus: "Approved" },
 ];
+
+/* Many-to-many labour <-> site mapping. LABOUR.siteId stays as the derived "primary site" (first mapped, or null).
+   Seed: every labour's current site; Dilip Pradhan (5) is also on site 1; Manoranjan (3) is deliberately unmapped. */
+const LABOUR_SITES = [
+  { id: 1, labourId: 1, siteId: 1 },
+  { id: 2, labourId: 2, siteId: 1 },
+  { id: 3, labourId: 4, siteId: 2 },
+  { id: 4, labourId: 5, siteId: 5 },
+  { id: 5, labourId: 5, siteId: 1 },
+  { id: 6, labourId: 6, siteId: 3 },
+  { id: 7, labourId: 7, siteId: 4 },
+  { id: 8, labourId: 8, siteId: 1 },
+];
+
+/* Biometric (thumb-impression) images: { id, labourId, label, imageDataUrl, hash, capturedOn } */
+const BIOMETRICS = [];
 
 /* Approval workflow log — mirrors LABOUR.approvalStatus */
 const APPROVAL_REQUESTS = [

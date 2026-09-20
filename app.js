@@ -16,6 +16,8 @@ const userName = (id) => (byId(USERS, id) ? byId(USERS, id).name : "—");
 const deptName = (id) => (byId(DEPARTMENTS, id) ? byId(DEPARTMENTS, id).name : "—");
 const siteName = (id) => (byId(SITES, id) ? byId(SITES, id).name : "—");
 const labourName = (id) => (byId(LABOUR, id) ? byId(LABOUR, id).name : "—");
+const labourSiteNames = (id) => (isUnmapped(id) ? "Unmapped" : labourSiteIds(id).map(siteName).join(", "));
+const labourInSites = (l, siteIds) => labourSiteIds(l.id).some((sid) => siteIds.includes(sid));
 const roleName = (id) => (byId(ROLES, id) ? byId(ROLES, id).name : "—");
 const clientName = (id) => (byId(CLIENTS, id) ? byId(CLIENTS, id).name : "—");
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -147,8 +149,8 @@ function accessDenied(action) {
 function pageDashboard() {
   const scoped = scopedSiteIds();
   const activeSites = SITES.filter((s) => scoped.includes(s.id) && s.status === "Active").length;
-  const manpower = LABOUR.filter((l) => scoped.includes(l.siteId) && l.approvalStatus === "Approved").length;
-  const pendingApprovals = APPROVAL_REQUESTS.filter((a) => a.status === "Pending" && scoped.includes(byId(LABOUR, a.labourId).siteId)).length;
+  const manpower = LABOUR.filter((l) => labourInSites(l, scoped) && l.approvalStatus === "Approved").length;
+  const pendingApprovals = APPROVAL_REQUESTS.filter((a) => a.status === "Pending" && labourInSites(byId(LABOUR, a.labourId), scoped)).length;
   const today = "2026-09-16";
   const todayAttendance = ATTENDANCE.filter((a) => a.date === today && scoped.includes(a.siteId));
   const present = todayAttendance.filter((a) => a.status === "Present").length;
@@ -157,7 +159,7 @@ function pageDashboard() {
 
   const deptSummary = DEPARTMENTS.filter((d) => state.deptId == null || d.id === state.deptId).map((d) => {
     const siteCount = SITES.filter((s) => s.departmentId === d.id).length;
-    const labourCount = LABOUR.filter((l) => SITES.find((s) => s.id === l.siteId && s.departmentId === d.id)).length;
+    const labourCount = LABOUR.filter((l) => labourSiteIds(l.id).some((sid) => SITES.find((s) => s.id === sid && s.departmentId === d.id))).length;
     return { d, siteCount, labourCount };
   });
 
@@ -236,7 +238,7 @@ function pageDepartments() {
     <div class="grid cols-3">
       ${/* intentionally lists all departments regardless of the Department dropdown (admin management page) */ DEPARTMENTS.map((d) => {
         const sites = SITES.filter((s) => s.departmentId === d.id);
-        const labour = LABOUR.filter((l) => sites.some((s) => s.id === l.siteId));
+        const labour = LABOUR.filter((l) => labourInSites(l, sites.map((s) => s.id)));
         const users = USERS.filter((u) => u.departmentIds.includes(d.id));
         return `<div class="site-card">
           <div class="site-card-head">
@@ -364,7 +366,8 @@ function showAddSiteModal() {
    ============================================================ */
 function pageManpower() {
   const scoped = scopedSiteIds();
-  const visible = LABOUR.filter((l) => scoped.includes(l.siteId));
+  // unmapped manpower are visible to roles that can add labour
+  const visible = LABOUR.filter((l) => labourInSites(l, scoped) || (isUnmapped(l.id) && can("addLabour")));
   const statusTag = (s) => s === "Approved" ? "ok" : s === "Pending" ? "warn" : "danger";
   return `
     <div class="page-head">
@@ -383,13 +386,13 @@ function pageManpower() {
         <table id="labourTable">
           <thead><tr><th>Name</th><th>Aadhaar</th><th>Phone</th><th>Skill</th><th>Wage Rate</th><th>Site</th><th>Status</th><th>Transfer</th></tr></thead>
           <tbody>
-            ${visible.map((l) => `<tr data-search="${esc(`${l.name} ${l.aadhaar} ${l.phone} ${siteName(l.siteId)}`.toLowerCase())}">
+            ${visible.map((l) => `<tr data-search="${esc(`${l.name} ${l.aadhaar} ${l.phone} ${labourSiteNames(l.id)}`.toLowerCase())}">
               <td>${esc(l.name)}</td>
               <td class="text-mono">${esc(l.aadhaar)}</td>
               <td class="text-mono">${esc(l.phone)}</td>
               <td>${esc(l.skill)}</td>
               <td>${currency(l.wageRate)}/day</td>
-              <td>${esc(siteName(l.siteId))}</td>
+              <td>${esc(labourSiteNames(l.id))}</td>
               <td><span class="tag ${statusTag(l.approvalStatus)}">${esc(l.approvalStatus)}</span>${l.rejectionReason ? `<div class="dim" style="font-size:11px;margin-top:4px;max-width:220px;">${esc(l.rejectionReason)}</div>` : ""}</td>
               <td class="dim">${l.transferHistory ? `${esc(siteName(l.transferHistory[0].fromSiteId))} → ${esc(siteName(l.transferHistory[0].toSiteId))} on ${esc(l.transferHistory[0].date)}` : "—"}</td>
             </tr>`).join("")}
@@ -443,6 +446,7 @@ function showAddLabourModal() {
       category: "Skilled", skill: f.get("skill"), wageRate: Number(f.get("rate")), siteId: Number(f.get("site")),
       joiningDate: "2026-09-16", active: false, approvalStatus: "Pending",
     });
+    mapLabourToSites(id, [Number(f.get("site"))]);
     APPROVAL_REQUESTS.push({ id: Store.nextId(APPROVAL_REQUESTS), labourId: id, requestedBy: state.currentUserId, requestDate: nowStamp(), approvedBy: null, decisionDate: null, status: "Pending" });
     AUDIT_LOG.push({ id: Store.nextId(AUDIT_LOG), timestamp: nowStamp(), userId: state.currentUserId, action: "Labour Added", details: `${f.get("name")} submitted for approval` });
     closeModal();
@@ -476,7 +480,7 @@ function pageApprovals() {
               const tag = a.status === "Approved" ? "ok" : a.status === "Pending" ? "warn" : "danger";
               return `<tr>
                 <td>${esc(l.name)}<div class="dim" style="font-size:11px;">Aadhaar ${esc(l.aadhaar)}</div></td>
-                <td>${esc(siteName(l.siteId))}</td>
+                <td>${esc(labourSiteNames(l.id))}</td>
                 <td>${esc(userName(a.requestedBy))}</td>
                 <td class="text-mono">${esc(a.requestDate)}</td>
                 <td><span class="tag ${tag}">${esc(a.status)}</span></td>
@@ -585,7 +589,7 @@ function showMarkAttendanceModal() {
   const labourSel = document.getElementById("attLabourSelect");
   function refreshLabourOptions() {
     const sid = Number(siteSel.value);
-    const opts = LABOUR.filter((l) => l.siteId === sid && l.approvalStatus === "Approved");
+    const opts = LABOUR.filter((l) => labourSiteIds(l.id).includes(sid) && l.approvalStatus === "Approved");
     labourSel.innerHTML = opts.map((l) => `<option value="${l.id}">${esc(l.name)}</option>`).join("") || `<option value="">No approved labour at this site</option>`;
   }
   siteSel.onchange = refreshLabourOptions;
@@ -813,7 +817,7 @@ function pageMaterials() {
 function pageReports() {
   const scoped = scopedSiteIds();
   const bySite = SITES.filter((s) => scoped.includes(s.id)).map((s) => {
-    const labour = LABOUR.filter((l) => l.siteId === s.id && l.approvalStatus === "Approved").length;
+    const labour = siteLabourIds(s.id).filter((lid) => byId(LABOUR, lid).approvalStatus === "Approved").length;
     const att = ATTENDANCE.filter((a) => a.siteId === s.id);
     const present = att.filter((a) => a.status === "Present").length;
     const wageOutstanding = WAGES.filter((w) => w.siteId === s.id).reduce((sum, w) => sum + w.balancePayable, 0);
@@ -852,7 +856,7 @@ function pageReports() {
         <table>
           <thead><tr><th>Status</th><th>Count</th></tr></thead>
           <tbody>
-            ${["Approved", "Pending", "Rejected"].map((st) => `<tr><td>${st}</td><td>${LABOUR.filter((l) => scoped.includes(l.siteId) && l.approvalStatus === st).length}</td></tr>`).join("")}
+            ${["Approved", "Pending", "Rejected"].map((st) => `<tr><td>${st}</td><td>${LABOUR.filter((l) => (labourInSites(l, scoped) || (isUnmapped(l.id) && can("addLabour"))) && l.approvalStatus === st).length}</td></tr>`).join("")}
           </tbody>
         </table>
       </div>
