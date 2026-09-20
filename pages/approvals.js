@@ -102,7 +102,34 @@ function setApprovalStatusChip(status) {
 const approvalEditState = { attachmentError: "" };
 
 function currentApprovalRequest() {
-  return state.approvalEdit === "new" || state.approvalEdit == null ? null : byId(APPROVAL_REQUESTS, Number(state.approvalEdit));
+  return state.approvalEdit === "new" || state.approvalEdit == null ? null : visibleApprovalRequest(Number(state.approvalEdit));
+}
+
+function visibleApprovalRequest(id) {
+  return Approvals.visibleRequests(currentUser(), state.deptId).find((req) => {
+    if (req.id !== Number(id)) return false;
+    const site = byId(SITES, req.siteId);
+    return state.deptId == null || !!site && site.departmentId === state.deptId;
+  }) || null;
+}
+
+function approvalLinkedLabour(siteId) {
+  const site = byId(SITES, Number(siteId));
+  if (!site || !scopedSiteIds().includes(site.id)) return [];
+  return LABOUR.filter((labour) => {
+    const sites = labourSiteIds(labour.id);
+    if (sites.length) return sites.includes(site.id);
+    const creator = byId(USERS, labour.createdBy);
+    return !!creator && (creator.departmentIds || []).includes(site.departmentId) && labourVisible(labour, currentUser(), [site.id], state.deptId);
+  });
+}
+
+function updateApprovalLabourOptions() {
+  const form = document.querySelector("[data-approval-form]");
+  if (!form) return;
+  const select = form.elements.labourId;
+  const selected = Number(select.value);
+  select.innerHTML = `<option value="">No linked labour</option>${approvalLinkedLabour(form.elements.siteId.value).map((labour) => `<option value="${labour.id}" ${labour.id === selected ? "selected" : ""}>${esc(labour.name)}</option>`).join("")}`;
 }
 
 function approvalField(name, label, control, full) {
@@ -115,9 +142,9 @@ function approvalEditDetailsHtml(req, editable) {
   const opt = (value, label, selected) => `<option value="${esc(value)}" ${String(value) === String(selected ?? "") ? "selected" : ""}>${esc(label)}</option>`;
   const type = `<select name="type" onchange="updateApprovalTypeFields()"${dis}>${REQUEST_TYPES.map((x) => opt(x, x, v.type)).join("")}</select>`;
   const sites = SITES.filter((s) => scopedSiteIds().includes(s.id));
-  const site = `<select name="siteId"${dis}><option value="">Select site...</option>${sites.map((s) => opt(s.id, s.name, v.siteId)).join("")}</select>`;
+  const site = `<select name="siteId" onchange="updateApprovalLabourOptions()"${dis}><option value="">Select site...</option>${sites.map((s) => opt(s.id, s.name, v.siteId)).join("")}</select>`;
   const priority = `<select name="priority"${dis}>${["Normal", "Urgent"].map((x) => opt(x, x, v.priority || "Normal")).join("")}</select>`;
-  const labour = `<select name="labourId"${dis}><option value="">No linked labour</option>${LABOUR.map((l) => opt(l.id, l.name, v.labourId)).join("")}</select>`;
+  const labour = `<select name="labourId"${dis}><option value="">No linked labour</option>${approvalLinkedLabour(v.siteId).map((l) => opt(l.id, l.name, v.labourId)).join("")}</select>`;
   const input = (name, kind, value, extra) => `<input name="${name}" type="${kind}" value="${esc(value ?? "")}"${extra || ""}${dis}>`;
   const note = !editable ? `<div class="section-note approval-decision-note">This request is read-only. ${Approvals.canDecide(currentUser(), req) ? "You can decide it below." : "Only its requester can make changes."}</div>` : "";
   const actions = editable ? `<div class="approval-form-actions"><button type="submit" class="btn secondary">Save</button><button type="button" class="btn teal" onclick="saveApprovalRequest(true)">Save &amp; Back</button></div>` : "";
@@ -156,7 +183,7 @@ function approvalHistoryHtml(req) {
 
 function approvalEditHtml() {
   const req = currentApprovalRequest();
-  if (state.approvalEdit !== "new" && !req) return `<div class="ui-empty">That approval request no longer exists.</div>`;
+  if (state.approvalEdit !== "new" && !req) return `<div class="ui-empty">That approval request is unavailable in your current scope.</div>`;
   const editable = state.approvalEdit === "new" ? Approvals.canAdd(currentUser()) : Approvals.canEdit(currentUser(), req);
   const title = req ? req.title : "New approval request";
   const panel = req && Approvals.canDecide(currentUser(), req) ? `<div class="approval-decision-panel"><div><strong>Decision required</strong><div class="dim">You are authorized to decide this request.</div></div><div class="approval-panel-actions"><button class="btn teal small" onclick="decideApproval(${req.id}, 'approve')">Approve</button><button class="btn danger small" onclick="decideApproval(${req.id}, 'reject')">Reject</button><button class="btn secondary small" onclick="decideApproval(${req.id}, 'review')">Ask review</button></div></div>` : req && req.requestedBy === currentUser().id && ["Review Requested", "Rejected"].includes(req.status) ? `<div class="approval-decision-panel"><div><strong>${esc(req.status)}</strong><div class="dim">Update the request, then resubmit it for approval.</div></div><button class="btn teal small" onclick="resubmitApproval(${req.id})">Resubmit</button></div>` : "";
@@ -192,7 +219,7 @@ function saveApprovalRequest(returnToList) {
   const form = document.querySelector("[data-approval-form]");
   if (!form) return;
   const current = currentApprovalRequest();
-  const allowed = current ? Approvals.canEdit(currentUser(), current) : Approvals.canAdd(currentUser());
+  const allowed = current ? Approvals.canEdit(currentUser(), current) : state.approvalEdit === "new" && Approvals.canAdd(currentUser());
   if (!allowed) { showToast("You cannot edit this request"); return; }
   const values = approvalReadForm(form);
   const errors = {
@@ -201,6 +228,7 @@ function saveApprovalRequest(returnToList) {
     siteId: values.siteId && scopedSiteIds().includes(values.siteId) ? "" : "Select a site in your scope",
     description: values.description ? "" : "Description is required",
     amount: values.amount != null && (!Number.isFinite(values.amount) || values.amount < 0) ? "Enter a valid amount" : "",
+    labourId: values.labourId != null && !approvalLinkedLabour(values.siteId).some((labour) => labour.id === values.labourId) ? "Select linked labour appropriate to this site and department" : "",
   };
   Object.entries(errors).forEach(([name, message]) => approvalFormError(form, name, message));
   const first = Object.values(errors).find(Boolean);
@@ -245,6 +273,8 @@ async function addApprovalFiles(files) {
   const req = currentApprovalRequest();
   if (!req || !Approvals.canEdit(currentUser(), req)) { approvalEditState.attachmentError = "You cannot change attachments on this request"; render(); return; }
   const errors = [];
+  const attachmentsBefore = [...(req.attachments || [])];
+  const auditBefore = AUDIT_LOG.length;
   let added = 0;
   for (const file of Array.from(files || [])) {
     try {
@@ -254,9 +284,15 @@ async function addApprovalFiles(files) {
       else errors.push(`${file.name}: ${r.error}`);
     } catch (err) { errors.push(`${file.name}: ${err.message || "Could not read file"}`); }
   }
+  if (added && !Store.save()) {
+    req.attachments.splice(0, req.attachments.length, ...attachmentsBefore);
+    AUDIT_LOG.splice(auditBefore);
+    errors.push("Could not save attachments to browser storage. Free some space and try again.");
+    added = 0;
+  }
   approvalEditState.attachmentError = errors.join(" ");
-  if (added) showToast(`${added} attachment${added === 1 ? "" : "s"} added`);
   render();
+  if (added) showToast(`${added} attachment${added === 1 ? "" : "s"} added`);
 }
 
 function addApprovalDroppedFiles(event) {
@@ -277,9 +313,10 @@ function removeApprovalAttachment(attId) {
 }
 
 function resubmitApproval(reqId) {
-  const req = byId(APPROVAL_REQUESTS, reqId);
+  const req = visibleApprovalRequest(reqId);
   if (!req) return;
   UI.confirm(`Resubmit "${req.title}" for approval?`, (remark) => {
+    if (visibleApprovalRequest(reqId) !== req) { showToast("This request is outside your current scope"); return; }
     const r = Approvals.resubmit(req, currentUser(), remark, nowStamp());
     if (!r.ok) { showToast(esc(r.error)); return; }
     approvalAudit("Approval Request Resubmitted", `${req.title}${remark ? ` - ${remark}` : ""}`);
@@ -309,10 +346,11 @@ function pageApprovals() {
 }
 
 function decideApproval(reqId, action) {
-  const req = byId(APPROVAL_REQUESTS, reqId);
+  const req = visibleApprovalRequest(reqId);
   if (!req) return;
   const verb = { approve: "approved", reject: "rejected", review: "sent back for review" }[action];
   const finish = (remark) => {
+    if (visibleApprovalRequest(reqId) !== req) { showToast("This request is outside your current scope"); return; }
     const r = Approvals.decide(req, action, currentUser(), remark, nowStamp());
     if (!r.ok) { showToast(esc(r.error)); return; }
     const labour = req.labourId != null ? byId(LABOUR, req.labourId) : null;

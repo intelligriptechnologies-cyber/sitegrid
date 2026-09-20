@@ -45,6 +45,11 @@ function attendanceStatusKind(status) { return status === "Present" ? "ok" : sta
 function attendanceGlyph(status) { return ({ Present: "P", Absent: "A", "Half Day": "½", Leave: "L" })[status] || ""; }
 function attendanceGlyphs(statuses) { return String(statuses || "").split(" / ").map(attendanceGlyph).filter(Boolean).join("/"); }
 function attendanceScopedSites() { return SITES.filter((site) => scopedSiteIds().includes(site.id)); }
+function attendanceSelectedSite() {
+  const siteId = Number(attendanceViewState.siteId);
+  if (!scopedSiteIds().includes(siteId)) attendanceViewState.siteId = "";
+  return Number(attendanceViewState.siteId) || null;
+}
 
 function attendanceActiveDate() {
   const date = attendanceViewState.date || state.attendanceDate || attendanceLatestDate();
@@ -56,7 +61,7 @@ function attendanceActiveDate() {
 
 function attendanceFilterHtml() {
   const date = attendanceActiveDate();
-  const siteId = attendanceViewState.siteId;
+  const siteId = attendanceSelectedSite();
   return `<div class="attendance-filters panel"><div class="panel-body">
     <div class="field"><label for="attendanceDate">Date</label><input id="attendanceDate" type="date" value="${esc(date)}" onchange="setAttendanceDate(this.value)"></div>
     <div class="field"><label for="attendanceMonth">Month-Year</label><input id="attendanceMonth" type="month" value="${esc(attendanceViewState.month)}" onchange="setAttendanceMonth(this.value)"></div>
@@ -67,7 +72,7 @@ function attendanceFilterHtml() {
 
 function attendanceDailyHtml() {
   const date = attendanceActiveDate();
-  const selectedSite = Number(attendanceViewState.siteId) || null;
+  const selectedSite = attendanceSelectedSite();
   const scoped = scopedSiteIds();
   const rows = ATTENDANCE.filter((row) => row.date === date && scoped.includes(row.siteId) && (!selectedSite || row.siteId === selectedSite));
   const totals = { Present: 0, Absent: 0, "Half Day": 0, Leave: 0 };
@@ -95,10 +100,10 @@ function attendanceDailyHtml() {
 
 function attendanceMonthlyHtml() {
   const month = attendanceViewState.month || attendanceActiveDate().slice(0, 7);
-  const selectedSite = Number(attendanceViewState.siteId) || null;
+  const selectedSite = attendanceSelectedSite();
   const siteIds = selectedSite ? [selectedSite] : scopedSiteIds();
-  const labourIds = [...new Set(siteIds.flatMap((siteId) => markableLabour(siteId).map((labour) => labour.id)))];
-  const records = ATTENDANCE.filter((row) => siteIds.includes(row.siteId));
+  const records = ATTENDANCE.filter((row) => siteIds.includes(row.siteId) && String(row.date || "").startsWith(`${month}-`));
+  const labourIds = [...new Set([...siteIds.flatMap((siteId) => markableLabour(siteId).map((labour) => labour.id)), ...records.map((row) => row.labourId)])];
   const matrix = attendanceMonthMatrix(records, labourIds, month);
   const days = new Date(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0).getDate();
   return `<div class="attendance-legend"><span><b class="attendance-glyph present">P</b> Present</span><span><b class="attendance-glyph absent">A</b> Absent</span><span><b class="attendance-glyph half">½</b> Half Day</span><span><b class="attendance-glyph leave">L</b> Leave</span></div>
@@ -118,6 +123,7 @@ function setAttendanceSite(value) { attendanceViewState.siteId = value; render()
 function setAttendanceMode(mode) { attendanceViewState.mode = mode === "monthly" ? "monthly" : "daily"; render(); }
 
 function attendanceMarkRows(siteId, date) {
+  if (!scopedSiteIds().includes(Number(siteId))) return [];
   const existing = new Map(ATTENDANCE.filter((row) => row.siteId === Number(siteId) && row.date === date).map((row) => [row.labourId, row]));
   return markableLabour(siteId).map((labour) => ({ labour, record: existing.get(labour.id) || null }));
 }
@@ -132,7 +138,9 @@ function attendanceMarkRowsHtml(siteId, date) {
 function showMarkAttendanceModal(initial = {}) {
   if (!can("markAttendance")) { showToast("You do not have permission to mark attendance"); return; }
   const date = initial.date || attendanceToday();
-  const siteId = initial.siteId || Number(attendanceViewState.siteId) || "";
+  const selectedSite = attendanceSelectedSite();
+  const requestedSite = Number(initial.siteId || selectedSite);
+  const siteId = scopedSiteIds().includes(requestedSite) ? requestedSite : "";
   openModal("Mark Attendance", `<form id="attendanceMarkForm"><div class="form-grid"><div class="field"><label>Date *</label><input id="attendanceMarkDate" name="date" type="date" required value="${esc(date)}"></div><div class="field"><label>Site *</label><select id="attendanceMarkSite" name="site" required><option value="">Select site...</option>${attendanceScopedSites().map((site) => `<option value="${site.id}" ${Number(siteId) === site.id ? "selected" : ""}>${esc(site.name)}</option>`).join("")}</select></div><div class="field full attendance-mark-tools"><button class="attendance-action-link" type="button" data-att-all>Mark all Present</button><button class="attendance-action-link" type="button" data-att-clear>Clear</button><button class="btn secondary small" type="button" disabled>Verify with thumb impression (coming soon)</button></div><div id="attendanceMarkRows" class="field full">${attendanceMarkRowsHtml(siteId, date)}</div><div id="attendanceMarkError" class="field-error full"></div></div><div class="form-actions"><button class="btn secondary" type="button" onclick="closeModal()">Cancel</button><button class="btn teal" type="submit">Save Attendance</button></div></form>`, { wide: true });
   const form = document.getElementById("attendanceMarkForm");
   const dateInput = document.getElementById("attendanceMarkDate");
