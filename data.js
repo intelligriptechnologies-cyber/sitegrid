@@ -158,3 +158,23 @@ const ACCESS_MATRIX = {
   viewDeptReports: [2],
   viewSiteReports: [3, 4],
 };
+
+/* Roles carry an editable perms[] array; ACCESS_MATRIX above is only the seed. */
+ROLES.forEach((r) => {
+  r.active = true;
+  r.perms = Object.keys(ACCESS_MATRIX).filter((k) => ACCESS_MATRIX[k].includes(r.id));
+});
+const PERM_KEYS = Object.keys(ACCESS_MATRIX);
+const PERM_LABELS = {
+  addEditDepartments: "Add/edit departments",
+  addEditUsers: "Manage users & roles",
+  addSite: "Add sites",
+  approveLabour: "Approve labour",
+  addLabour: "Add labour",
+  markAttendance: "Mark attendance",
+  updateWagePayment: "Update wage payment",
+  addExpense: "Add expenses",
+  viewAllReports: "View all reports",
+  viewDeptReports: "View department reports",
+  viewSiteReports: "View site reports",
+};

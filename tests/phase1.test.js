@@ -127,4 +127,40 @@ test("store: non-array stored value is ignored, seed kept", () => {
   assert.strictEqual(get("USERS.length"), before);
 });
 
+test("roles: every role has perms array and active; PERM_KEYS/PERM_LABELS exported", () => {
+  const { get } = auth();
+  assert.strictEqual(get("ROLES.every(r => Array.isArray(r.perms) && r.active === true)"), true);
+  assert.strictEqual(get("ROLES[0].perms.includes('addEditUsers')"), true);
+  assert.strictEqual(get("ROLES[4].perms.includes('addEditUsers')"), false);
+  assert.strictEqual(get("PERM_KEYS.every(k => typeof PERM_LABELS[k] === 'string' && PERM_LABELS[k].length > 0)"), true);
+  assert.strictEqual(get("PERM_KEYS.length"), 11);
+});
+test("roles: new level-3 role is not all-dept and scopes by siteIds", () => {
+  const { get } = auth();
+  get("ROLES.push({id:5, name:'Foreman', level:3, perms:['addSite'], active:true})");
+  get("USERS.push({id:50, name:'F', mobile:'9000000050', departmentIds:[1], roleId:5, active:true, siteIds:[5]})");
+  assert.strictEqual(get("Auth.isAllDeptRole(USERS.find(u=>u.id===50))"), false);
+  assert.strictEqual(get("Auth.roleLevel(USERS.find(u=>u.id===50))"), 3);
+  assert.strictEqual(get("JSON.stringify(Auth.scopeSiteIds(USERS.find(u=>u.id===50), null))"), "[5]");
+});
+test("roles: new level-1 role makes user all-dept; level-2 role scopes by department", () => {
+  const { get } = auth();
+  get("ROLES.push({id:6, name:'Director', level:1, perms:[], active:true})");
+  get("ROLES.push({id:7, name:'Dept Lead', level:2, perms:[], active:true})");
+  get("USERS.push({id:51, name:'D', mobile:'9000000051', departmentIds:[], roleId:6, active:true, siteIds:[]})");
+  get("USERS.push({id:52, name:'L', mobile:'9000000052', departmentIds:[1], roleId:7, active:true, siteIds:[]})");
+  assert.strictEqual(get("Auth.isAllDeptRole(USERS.find(u=>u.id===51))"), true);
+  assert.strictEqual(get("Auth.requestOtp('9000000051').ok"), true);
+  assert.strictEqual(get("JSON.stringify(Auth.scopeSiteIds(USERS.find(u=>u.id===52), null))"), "[1,5]");
+});
+test("roles: sign-in requires an existing, active role", () => {
+  const { get } = auth();
+  get("ROLES.find(r => r.id === 2).active = false");
+  assert.strictEqual(get("Auth.requestOtp('9876500003').ok"), false);
+  get("ROLES.find(r => r.id === 2).active = true");
+  assert.strictEqual(get("Auth.requestOtp('9876500003').ok"), true);
+  get("USERS.find(u => u.id === 3).roleId = 99");
+  assert.strictEqual(get("Auth.requestOtp('9876500003').ok"), false);
+});
+
 console.log(`${passed} passed`);

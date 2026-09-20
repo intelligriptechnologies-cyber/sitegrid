@@ -24,8 +24,7 @@ const currency = (n) => "Rs " + Number(n || 0).toLocaleString("en-IN");
 function currentUser() { return byId(USERS, state.currentUserId); }
 function currentRole() { return byId(ROLES, currentUser().roleId); }
 function can(actionKey) {
-  const allowedLevels = ACCESS_MATRIX[actionKey] || [];
-  return allowedLevels.includes(currentRole().id);
+  return ((currentRole() || {}).perms || []).includes(actionKey);
 }
 
 /* Sites/labour visible to the current user, based on role scope */
@@ -256,7 +255,7 @@ function showAddDepartmentModal() {
     <form id="deptForm" class="form-grid">
       <div class="field full"><label>Department Name</label><input required name="name" placeholder="e.g. Interior Finishing" /></div>
       <div class="field full"><label>Department Head</label>
-        <select name="head">${USERS.filter((u) => u.roleId <= 2 && u.active).map((u) => `<option value="${u.id}">${u.name}</option>`).join("")}</select>
+        <select name="head">${USERS.filter((u) => Auth.roleLevel(u) <= 2 && u.active).map((u) => `<option value="${u.id}">${u.name}</option>`).join("")}</select>
       </div>
       <div class="field full" style="margin-top:4px;">
         <div class="section-note">New department is saved in this browser (localStorage). Use Reset demo data on the login screen to restore the seed.</div>
@@ -302,11 +301,11 @@ function pageUsers() {
             ${ROLES.map((r) => `<tr>
               <td class="text-mono">L${r.level}</td>
               <td>${r.name}</td>
-              <td>${ACCESS_MATRIX.addSite.includes(r.id) ? "Yes" : "No"}</td>
-              <td>${ACCESS_MATRIX.approveLabour.includes(r.id) ? "Yes" : "No"}</td>
-              <td>${ACCESS_MATRIX.markAttendance.includes(r.id) ? "Yes" : "No"}</td>
-              <td>${ACCESS_MATRIX.updateWagePayment.includes(r.id) ? "Yes" : "No"}</td>
-              <td>${ACCESS_MATRIX.viewAllReports.includes(r.id) ? "All" : ACCESS_MATRIX.viewDeptReports.includes(r.id) ? "Department" : "Assigned Site"}</td>
+              <td>${r.perms.includes("addSite") ? "Yes" : "No"}</td>
+              <td>${r.perms.includes("approveLabour") ? "Yes" : "No"}</td>
+              <td>${r.perms.includes("markAttendance") ? "Yes" : "No"}</td>
+              <td>${r.perms.includes("updateWagePayment") ? "Yes" : "No"}</td>
+              <td>${r.perms.includes("viewAllReports") ? "All" : r.perms.includes("viewDeptReports") ? "Department" : "Assigned Site"}</td>
             </tr>`).join("")}
           </tbody>
         </table>

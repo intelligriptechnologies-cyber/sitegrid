@@ -8,7 +8,8 @@ const Auth = {
     const m = this.normalizeMobile(mobile);
     return m.length === 10 ? USERS.find((u) => u.mobile === m) || null : null;
   },
-  isAllDeptRole(user) { return user.roleId === 0 || user.roleId === 1; },
+  roleLevel(user) { const r = user && ROLES.find((x) => x.id === user.roleId); return r ? r.level : Infinity; },
+  isAllDeptRole(user) { return this.roleLevel(user) <= 1; },
   allowedDepartments(user) {
     const active = DEPARTMENTS.filter((d) => d.active);
     return this.isAllDeptRole(user) ? active : active.filter((d) => (user.departmentIds || []).includes(d.id));
@@ -19,7 +20,8 @@ const Auth = {
     return list.length ? list[0].id : null;
   },
   canSignIn(user) {
-    return !!user && user.active && (this.isAllDeptRole(user) || this.allowedDepartments(user).length > 0);
+    const role = user && ROLES.find((x) => x.id === user.roleId);
+    return !!user && user.active && !!role && role.active !== false && (this.isAllDeptRole(user) || this.allowedDepartments(user).length > 0);
   },
   requestOtp(mobile) {
     const user = this.findUserByMobile(mobile);
@@ -34,7 +36,7 @@ const Auth = {
     let sites;
     if (this.isAllDeptRole(user)) sites = SITES;
     // Department Heads see every site of their departments; siteIds is ignored for this role.
-    else if (user.roleId === 2) sites = SITES.filter((s) => (user.departmentIds || []).includes(s.departmentId));
+    else if (this.roleLevel(user) === 2) sites = SITES.filter((s) => (user.departmentIds || []).includes(s.departmentId));
     else sites = SITES.filter((s) => (user.siteIds || []).includes(s.id));
     if (deptId != null) sites = sites.filter((s) => s.departmentId === deptId);
     return sites.map((s) => s.id);
