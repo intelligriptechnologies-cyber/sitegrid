@@ -37,7 +37,19 @@ Then visit the printed local URL.
 | `core/auth.js` | User authentication, sign-in validation, OTP logic, role scope computation, and the `Session` (sessionStorage) helper |
 | `core/login.js` | Login screen rendering and interaction (user picker, mobile input, OTP) |
 | `core/store.js` | localStorage persistence layer for the data tables |
+| `core/ui.js` | Shared UI kit: searchable/paginated table host (10/20/50, pager top and bottom), form and confirm dialogs, tabs, active switch, image upload helper |
+| `pages/users.js` | Users & Roles page: Users CRUD and Roles CRUD (Table/Grid views) |
 | `tests/phase1.test.js` | Phase 1 spec tests (run with `node tests/phase1.test.js`) |
+| `tests/ui.test.js` | Pure-helper tests for `core/ui.js` (`node tests/ui.test.js`) |
+| `tests/users.test.js` | User and role form validation tests (`node tests/users.test.js`) |
+
+## Users & Roles behavior
+
+- Only Super Admin and Business Owner (level 0/1) see and edit **Users & Roles**.
+- **Users**: create/edit/delete via dialog, Active switch per row, own quick-search and pager. Mobile must be 10 unique digits; changes apply at the next sign-in. Non-admin roles need at least one department.
+- **Roles**: Table or Grid view (toggle keeps the search text), own quick-search, "+ New Role". Each role has a name (unique, case-insensitive), a level (L0-L3) and a permission set; click a row or card to edit.
+- A role held by active users cannot be deactivated; you cannot edit your own role so it loses "Manage users & roles"; built-in roles (Super Admin to Project Engineer) cannot be deleted, custom unused roles can.
+- New roles and their permissions take effect immediately for users assigned to them (sidebar and buttons re-evaluate).
 
 ## How to demo the role model
 

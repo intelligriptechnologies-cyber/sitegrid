@@ -42,4 +42,27 @@ test("name and role required", () => {
   assert.ok(run({ ...ok, name: "  " }).name);
   assert.ok(run({ ...ok, roleId: "" }).roleId);
 });
+const runR = (values, id) => JSON.parse(get(`JSON.stringify(validateRoleForm(${v(values)}, ${id === undefined ? "null" : id}))`));
+const okR = { name: "Site Supervisor", level: "3", perms: ["markAttendance"] };
+test("role: valid values -> no errors", () => assert.deepStrictEqual(runR(okR), {}));
+test("role: name required", () => assert.ok(runR({ ...okR, name: "  " }).name));
+test("role: name unique case-insensitively, own record excluded", () => {
+  assert.ok(runR({ ...okR, name: "super admin" }).name);
+  assert.deepStrictEqual(runR({ ...okR, name: "SUPER ADMIN", level: "0" }, 0), {});
+});
+test("role: level must be integer 0-3", () => {
+  assert.ok(runR({ ...okR, level: "" }).level);
+  assert.ok(runR({ ...okR, level: "4" }).level);
+  assert.ok(runR({ ...okR, level: "-1" }).level);
+  assert.ok(runR({ ...okR, level: "1.5" }).level);
+  assert.deepStrictEqual(runR({ ...okR, level: 0 }), {});
+});
+test("role: roleMatches searches name, level and permission labels", () => {
+  const m = (q) => get(`roleMatches(ROLES.find((r) => r.id === 4), ${v(q)})`);
+  assert.strictEqual(m("engineer"), true);
+  assert.strictEqual(m("l3"), true);
+  assert.strictEqual(m("mark attend"), true);
+  assert.strictEqual(m("zzz"), false);
+  assert.strictEqual(m(""), true);
+});
 console.log(`${passed} passed`);

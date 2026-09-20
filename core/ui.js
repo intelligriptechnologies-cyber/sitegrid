@@ -60,7 +60,7 @@ const UI = (() => {
     const span = cfg.columns.length + (acts.length ? 1 : 0);
     const rows = pg.rows.map((r, i) => {
       const cells = cfg.columns.map((c) => `<td>${c.html ? c.html(r) : e(c.text(r))}</td>`).join("");
-      const btns = acts.length ? `<td class="row-actions">${acts.map((a) =>
+      const btns = acts.length ? `<td class="row-actions">${acts.filter((a) => !a.show || a.show(r)).map((a) =>
         `<button type="button" class="icon-btn${a.danger ? " danger" : ""}" data-row-act="${e(a.key)}" title="${e(a.label)}" aria-label="${e(a.label)}">${e(a.icon || a.label.slice(0, 1))}</button>`).join("")}</td>` : "";
       return `<tr data-i="${i}"${cfg.onRowClick ? ` class="clickable"` : ""}>${cells}${btns}</tr>`;
     }).join("");
