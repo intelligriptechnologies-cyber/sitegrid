@@ -768,3 +768,30 @@ tbody tr:last-child td{border-bottom:none;}
 .approval-history-item .dim{font-size:11px;margin-top:3px;}
 .approval-history-remark{margin-top:6px;padding:7px 9px;background:var(--line-soft);border-radius:var(--radius);white-space:pre-wrap;}
 @media (max-width:600px){.approval-decision-panel{align-items:flex-start;flex-direction:column;}.approval-attachment{align-items:flex-start;flex-wrap:wrap;}.approval-attachment-info{min-width:calc(100% - 54px);}.approval-attachment .btn{margin-left:52px;}}
+
+/* Attendance */
+.attendance-filters{margin-bottom:16px;}
+.attendance-filters .panel-body{display:flex;align-items:end;gap:12px;flex-wrap:wrap;}
+.attendance-filters .field{min-width:150px;margin:0;}
+.attendance-toggle{display:flex;gap:4px;padding-bottom:1px;}
+.attendance-summary,.attendance-legend{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px;align-items:center;}
+.attendance-legend{font-size:12px;color:var(--ink-dim);gap:14px;}
+.attendance-glyph{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:4px;margin-right:3px;font-family:var(--mono);font-size:11px;}
+.attendance-glyph.present,.attendance-cell.ok{background:var(--ok-soft);color:var(--teal-strong);}
+.attendance-glyph.absent,.attendance-cell.danger{background:var(--danger-soft);color:var(--danger);}
+.attendance-glyph.half,.attendance-cell.warn{background:var(--warn-soft);color:var(--warn);}
+.attendance-glyph.leave,.attendance-cell.neutral{background:var(--line-soft);color:var(--ink-dim);}
+.attendance-matrix{font-size:12px;white-space:nowrap;}
+.attendance-matrix th,.attendance-matrix td{text-align:center;min-width:34px;padding:8px 7px;}
+.attendance-matrix .attendance-sticky{position:sticky;left:0;z-index:1;text-align:left;min-width:170px;background:var(--panel);box-shadow:1px 0 0 var(--line);}
+.attendance-matrix thead .attendance-sticky{z-index:2;background:var(--ink);}
+.attendance-cell{font-family:var(--mono);font-weight:700;}
+.attendance-mark-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.attendance-action-link{border:0;background:transparent;color:var(--teal-strong);padding:2px 0;font:inherit;font-size:12px;text-decoration:underline;cursor:pointer;}
+.attendance-action-link:hover{color:var(--ink);}
+.attendance-mark-list{border:1px solid var(--line);border-radius:var(--radius);overflow:auto;max-height:380px;}
+.attendance-mark-row{display:grid;grid-template-columns:78px minmax(150px,1fr) 120px 100px 100px minmax(150px,1fr);gap:8px;align-items:center;padding:9px 10px;border-bottom:1px solid var(--line-soft);}
+.attendance-mark-row:last-child{border-bottom:none;}
+.attendance-include{display:flex;gap:6px;align-items:center;font-size:12px;font-family:var(--mono);}
+.attendance-mark-row .dim{font-size:11px;margin-top:2px;}
+@media (max-width:800px){.attendance-mark-row{grid-template-columns:78px minmax(150px,1fr) 120px;}.attendance-mark-row input[name="checkIn"],.attendance-mark-row input[name="checkOut"],.attendance-mark-row input[name="remarks"]{grid-column:2 / -1;}.attendance-filters .panel-body{align-items:stretch;}.attendance-toggle{padding:0;}}

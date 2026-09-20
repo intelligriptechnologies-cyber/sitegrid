@@ -53,6 +53,13 @@ Then visit the printed local URL.
 - Only approved manpower can be activated. Delete is blocked when the manpower has attendance, wage or approval records (deactivate instead); otherwise it also removes the site mappings and biometric images.
 - Project Managers/Engineers who create a site are automatically given access to it.
 
+## Attendance behavior
+
+- Attendance has native Date and Month-Year pickers, a scoped Site filter, and Daily / Monthly views. Changing a date synchronizes the month; choosing a month opens the monthly matrix.
+- Daily attendance uses a searchable, paginated table with status totals, check-in/out, marker, remarks, and permission-gated editing.
+- The monthly matrix shows P/A/½/L by mapped approved active labour, status totals, and worked days (Present + 0.5 × Half Day). When All sites is selected and a labour has records at multiple sites on one day, the cell shows every matching glyph (for example `P/½`) so it agrees with the totals.
+- Mark Attendance is site-first: choose the date and required site to load only mapped, active, approved labour. It pre-fills existing records and saves through upsert semantics—one row per labour + site + date—reporting added and updated counts.
+
 ## Users & Roles behavior
 
 - Only Super Admin and Business Owner (level 0/1) see and edit **Users & Roles**.
