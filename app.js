@@ -4,7 +4,8 @@
    ============================================================ */
 
 const state = {
-  currentUserId: 2,       // default: Business Owner (broad view for first impression)
+  currentUserId: null,
+  deptId: null,           // null = All Departments (admin/owner only)
   route: "dashboard",
   sidebarOpen: false,
 };
@@ -27,12 +28,7 @@ function can(actionKey) {
 }
 
 /* Sites/labour visible to the current user, based on role scope */
-function scopedSiteIds() {
-  const role = currentRole();
-  if (role.id === 0 || role.id === 1) return SITES.map((s) => s.id); // full visibility
-  if (role.id === 2) return SITES.filter((s) => s.departmentId === currentUser().departmentId).map((s) => s.id);
-  return currentUser().siteIds; // Project Manager / Engineer: assigned sites only
-}
+function scopedSiteIds() { return Auth.scopeSiteIds(currentUser(), state.deptId); }
 
 /* ---------- navigation ---------- */
 const NAV = [
@@ -91,12 +87,17 @@ function renderNav() {
   });
 }
 
-function renderRoleSwitch() {
-  const sel = document.getElementById("roleSelect");
-  sel.innerHTML = USERS.map((u) =>
-    `<option value="${u.id}" ${u.id === state.currentUserId ? "selected" : ""}>${u.name} — ${roleName(u.roleId)}${u.active ? "" : " (Inactive)"}</option>`
-  ).join("");
-  sel.onchange = (e) => { state.currentUserId = Number(e.target.value); render(); };
+function renderDeptSwitch() {
+  const u = currentUser();
+  const sel = document.getElementById("deptSelect");
+  const depts = Auth.allowedDepartments(u);
+  const all = Auth.isAllDeptRole(u);
+  sel.innerHTML = (all ? `<option value="">All Departments</option>` : "") +
+    depts.map((d) => `<option value="${d.id}" ${d.id === state.deptId ? "selected" : ""}>${d.name}</option>`).join("");
+  sel.value = state.deptId == null ? "" : String(state.deptId);
+  sel.disabled = !all && depts.length <= 1;
+  sel.onchange = (e) => { state.deptId = e.target.value === "" ? null : Number(e.target.value); render(); };
+  document.getElementById("userChip").textContent = `${u.name} · ${roleName(u.roleId)}`;
 }
 
 function showToast(msg) {
@@ -958,18 +959,45 @@ const PAGES = {
   audit: { title: "Audit Log", render: pageAudit },
 };
 
+const navVisible = () => true; // TEMP stub; replaced in Task 4
+
 function render() {
+  Store.save();
+  if (!navVisible(state.route)) state.route = "dashboard";
   renderNav();
-  renderRoleSwitch();
+  renderDeptSwitch();
   const page = PAGES[state.route] || PAGES.dashboard;
   document.getElementById("pageTitle").textContent = page.title;
   document.getElementById("content").innerHTML = page.render();
   document.getElementById("sidebar").classList.toggle("open", state.sidebarOpen);
 }
 
+function startSession(user, deptId) {
+  state.currentUserId = user.id;
+  state.deptId = deptId === undefined ? Auth.defaultDept(user) : deptId;
+  state.route = "dashboard";
+  Session.save(user.id, state.deptId);
+  render();
+}
+
+function logout() {
+  Session.clear();
+  state.currentUserId = null;
+  showLogin((user) => startSession(user));
+}
+
 document.getElementById("menuToggle").addEventListener("click", () => {
   state.sidebarOpen = !state.sidebarOpen;
   document.getElementById("sidebar").classList.toggle("open", state.sidebarOpen);
 });
+document.getElementById("logoutBtn").addEventListener("click", logout);
+document.getElementById("deptSelect").addEventListener("change", () => Session.save(state.currentUserId, state.deptId));
 
-render();
+function boot() {
+  Store.load();
+  const s = Session.load();
+  const user = s && byId(USERS, s.userId);
+  if (Auth.canSignIn(user)) { hideLogin(); startSession(user, s.deptId); }
+  else showLogin((u) => startSession(u));
+}
+boot();
