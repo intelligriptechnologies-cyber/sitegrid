@@ -48,7 +48,7 @@ const NAV = [
     { id: "approvals", label: "Approvals", icon: "06" },
     { id: "attendance", label: "Attendance", icon: "07" },
     { id: "wages", label: "Wages & Payments", icon: "08" },
-    { id: "expenses", label: "Petty Expenses", icon: "09" },
+    { id: "expenses", label: "Petty Cash", icon: "09" },
     { id: "resources", label: "Tools & Safety", icon: "10" },
     { id: "materials", label: "Materials", icon: "11" },
   ]},
@@ -64,7 +64,7 @@ function badgeForNav(id) {
     return n > 0 ? n : null;
   }
   if (id === "expenses") {
-    const n = EXPENSES.filter((e) => e.approvedBy === null).length;
+    const n = EXPENSES.filter((e) => e.status === "Pending").length;
     return n > 0 ? n : null;
   }
   return null;
@@ -156,7 +156,7 @@ function pageDashboard() {
   const todayAttendance = ATTENDANCE.filter((a) => a.date === today && scoped.includes(a.siteId));
   const present = todayAttendance.filter((a) => a.status === "Present").length;
   const pendingWage = WAGES.filter((w) => scoped.includes(w.siteId) && w.status !== "Paid").reduce((s, w) => s + w.balancePayable, 0);
-  const totalExpense = EXPENSES.filter((e) => scoped.includes(e.siteId)).reduce((s, e) => s + e.amount, 0);
+  const totalExpense = EXPENSES.filter((e) => scoped.includes(e.siteId) && e.status !== "Rejected").reduce((s, e) => s + e.amount, 0);
 
   const deptSummary = DEPARTMENTS.filter((d) => state.deptId == null || d.id === state.deptId).map((d) => {
     const siteCount = SITES.filter((s) => s.departmentId === d.id).length;
@@ -182,7 +182,7 @@ function pageDashboard() {
 
     <div class="grid cols-2" style="margin-top:16px;">
       <div class="stat-card"><div class="stat-label">Wages Outstanding</div><div class="stat-value">${currency(pendingWage)}</div><div class="stat-note">pending + partially paid balance</div></div>
-      <div class="stat-card"><div class="stat-label">Petty Expense (visible scope)</div><div class="stat-value">${currency(totalExpense)}</div><div class="stat-note">cumulative recorded spend</div></div>
+      <div class="stat-card"><div class="stat-label">Petty Cash (visible scope)</div><div class="stat-value">${currency(totalExpense)}</div><div class="stat-note">approved + pending spend</div></div>
     </div>
 
     <div class="panel" style="margin-top:22px;">
@@ -284,73 +284,6 @@ function showAddDepartmentModal() {
     AUDIT_LOG.push({ id: Store.nextId(AUDIT_LOG), timestamp: nowStamp(), userId: state.currentUserId, action: "Department Added", details: `${f.get("name")} created` });
     closeModal();
     showToast("Department created");
-    render();
-  };
-}
-
-/* ============================================================
-   PAGE: EXPENSES
-   ============================================================ */
-function pageExpenses() {
-  const scoped = scopedSiteIds();
-  const rows = EXPENSES.filter((e) => scoped.includes(e.siteId));
-  const total = rows.reduce((s, e) => s + e.amount, 0);
-  return `
-    <div class="page-head">
-      <div>
-        <div class="page-eyebrow">// OPERATIONS</div>
-        <div class="page-heading">Petty Expenses</div>
-        <div class="page-sub">${rows.length} entries in scope · total ${currency(total)}</div>
-      </div>
-      <button class="btn teal" ${can("addExpense") ? "" : "disabled"} onclick="showAddExpenseModal()">+ Add Expense</button>
-    </div>
-    <div class="panel">
-      <div class="panel-body flush table-wrap">
-        <table>
-          <thead><tr><th>Date</th><th>Site</th><th>Category</th><th>Amount</th><th>Paid By</th><th>Description</th><th>Approval</th></tr></thead>
-          <tbody>
-            ${rows.map((e) => `<tr>
-              <td class="text-mono">${esc(e.date)}</td>
-              <td>${esc(siteName(e.siteId))}</td>
-              <td><span class="tag neutral">${esc(e.category)}</span></td>
-              <td>${currency(e.amount)}</td>
-              <td>${esc(userName(e.paidBy))}</td>
-              <td class="dim">${esc(e.description)}</td>
-              <td>${e.approvedBy ? `<span class="tag ok">Approved · ${esc(userName(e.approvedBy))}</span>` : `<span class="tag warn">Pending Review</span>`}</td>
-            </tr>`).join("")}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  `;
-}
-
-function showAddExpenseModal() {
-  const scoped = scopedSiteIds();
-  const siteOptions = (scoped.length ? scoped : SITES.map((s) => s.id));
-  openModal("Add Petty Expense", `
-    <form id="expForm" class="form-grid">
-      <div class="field"><label>Date</label><input required type="date" name="date" value="2026-09-16" /></div>
-      <div class="field"><label>Site</label><select name="site">${siteOptions.map((id) => `<option value="${id}">${esc(siteName(id))}</option>`).join("")}</select></div>
-      <div class="field"><label>Category</label>
-        <select name="category"><option>Transport</option><option>Food</option><option>Tools Purchase</option><option>Miscellaneous</option></select>
-      </div>
-      <div class="field"><label>Amount</label><input required type="number" name="amount" placeholder="1000" /></div>
-      <div class="field full"><label>Description</label><input required name="description" placeholder="What was this expense for" /></div>
-      <div class="form-actions" style="grid-column:1/-1;">
-        <button type="button" class="btn secondary" onclick="closeModal()">Cancel</button>
-        <button type="submit" class="btn teal">Save Expense</button>
-      </div>
-    </form>
-  `);
-  document.getElementById("expForm").onsubmit = (e) => {
-    e.preventDefault();
-    const f = new FormData(e.target);
-    const id = Store.nextId(EXPENSES);
-    EXPENSES.push({ id, date: f.get("date"), siteId: Number(f.get("site")), category: f.get("category"), amount: Number(f.get("amount")), paidBy: state.currentUserId, description: f.get("description"), approvedBy: null, remarks: "" });
-    AUDIT_LOG.push({ id: Store.nextId(AUDIT_LOG), timestamp: nowStamp(), userId: state.currentUserId, action: "Expense Added", details: `${f.get("category")} expense of ${currency(f.get("amount"))} at ${siteName(Number(f.get("site")))}` });
-    closeModal();
-    showToast("Expense recorded, pending review");
     render();
   };
 }
@@ -560,7 +493,7 @@ const PAGES = {
   approvals: { title: "Approvals", render: pageApprovals },
   attendance: { title: "Attendance", render: pageAttendance },
   wages: { title: "Wages & Payments", render: pageWages },
-  expenses: { title: "Petty Expenses", render: pageExpenses },
+  expenses: { title: "Petty Cash", render: pageExpenses },
   resources: { title: "Tools & Safety", render: pageResources },
   materials: { title: "Materials", render: pageMaterials },
   reports: { title: "Reports", render: pageReports },
