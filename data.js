@@ -21,15 +21,15 @@ const DEPARTMENTS = [
 ];
 
 const USERS = [
-  { id: 1, name: "Ramesh Behera", mobile: "9876500001", email: "ramesh.behera@builder.demo", designation: "System Administrator", departmentId: null, roleId: 0, active: true, siteIds: [] },
-  { id: 2, name: "Sunita Patnaik", mobile: "9876500002", email: "sunita.patnaik@builder.demo", designation: "Business Owner", departmentId: null, roleId: 1, active: true, siteIds: [] },
-  { id: 3, name: "Debasis Nayak", mobile: "9876500003", email: "debasis.nayak@builder.demo", designation: "Department Head", departmentId: 1, roleId: 2, active: true, siteIds: [1, 5] },
-  { id: 4, name: "Priya Mohanty", mobile: "9876500004", email: "priya.mohanty@builder.demo", designation: "Department Head", departmentId: 2, roleId: 2, active: true, siteIds: [2, 3] },
-  { id: 5, name: "Ashok Swain", mobile: "9876500005", email: "ashok.swain@builder.demo", designation: "Department Head", departmentId: 3, roleId: 2, active: true, siteIds: [4] },
-  { id: 6, name: "Manoj Sethi", mobile: "9876500006", email: "manoj.sethi@builder.demo", designation: "Project Manager", departmentId: 1, roleId: 3, active: true, siteIds: [1] },
-  { id: 7, name: "Kiran Sahu", mobile: "9876500007", email: "kiran.sahu@builder.demo", designation: "Project Engineer", departmentId: 1, roleId: 4, active: true, siteIds: [1, 5] },
-  { id: 8, name: "Rajesh Panda", mobile: "9876500008", email: "rajesh.panda@builder.demo", designation: "Project Manager", departmentId: 2, roleId: 3, active: true, siteIds: [3] },
-  { id: 9, name: "Bikash Jena", mobile: "9876500009", email: "bikash.jena@builder.demo", designation: "Project Engineer", departmentId: 3, roleId: 4, active: false, siteIds: [4] },
+  { id: 1, name: "Ramesh Behera", mobile: "9876500001", email: "ramesh.behera@builder.demo", designation: "System Administrator", departmentIds: [], roleId: 0, active: true, siteIds: [] },
+  { id: 2, name: "Sunita Patnaik", mobile: "9876500002", email: "sunita.patnaik@builder.demo", designation: "Business Owner", departmentIds: [], roleId: 1, active: true, siteIds: [] },
+  { id: 3, name: "Debasis Nayak", mobile: "9876500003", email: "debasis.nayak@builder.demo", designation: "Department Head", departmentIds: [1], roleId: 2, active: true, siteIds: [1, 5] },
+  { id: 4, name: "Priya Mohanty", mobile: "9876500004", email: "priya.mohanty@builder.demo", designation: "Department Head", departmentIds: [2], roleId: 2, active: true, siteIds: [2, 3] },
+  { id: 5, name: "Ashok Swain", mobile: "9876500005", email: "ashok.swain@builder.demo", designation: "Department Head", departmentIds: [3], roleId: 2, active: true, siteIds: [4] },
+  { id: 6, name: "Manoj Sethi", mobile: "9876500006", email: "manoj.sethi@builder.demo", designation: "Project Manager", departmentIds: [1], roleId: 3, active: true, siteIds: [1] },
+  { id: 7, name: "Kiran Sahu", mobile: "9876500007", email: "kiran.sahu@builder.demo", designation: "Project Engineer", departmentIds: [1, 2], roleId: 4, active: true, siteIds: [1, 5, 3] },
+  { id: 8, name: "Rajesh Panda", mobile: "9876500008", email: "rajesh.panda@builder.demo", designation: "Project Manager", departmentIds: [2], roleId: 3, active: true, siteIds: [3] },
+  { id: 9, name: "Bikash Jena", mobile: "9876500009", email: "bikash.jena@builder.demo", designation: "Project Engineer", departmentIds: [3], roleId: 4, active: false, siteIds: [4] },
 ];
 
 const CLIENTS = [
