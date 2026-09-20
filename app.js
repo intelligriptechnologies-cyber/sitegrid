@@ -986,6 +986,7 @@ function render() {
   const page = PAGES[state.route] || PAGES.dashboard;
   document.getElementById("pageTitle").textContent = page.title;
   document.getElementById("content").innerHTML = page.render();
+  UI.mountAll();
   document.getElementById("sidebar").classList.toggle("open", state.sidebarOpen);
   warnStorage(Store.save());
 }

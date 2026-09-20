@@ -27,6 +27,7 @@ const Store = {
       return true;
     } catch (e) { return false; }
   },
+  nextId(arr) { return Math.max(0, ...arr.map((r) => Number(r.id) || 0)) + 1; },
   reset(reload = true) {
     if (this.storage) for (const name of Object.keys(this.tables())) this.storage.removeItem(this.PREFIX + name);
     try { sessionStorage.removeItem("sitegrid.session"); } catch (e) { /* ignore */ }
