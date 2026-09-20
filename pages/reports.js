@@ -176,7 +176,7 @@ function pageReports() {
   if (meta.filters.includes("from")) fields.push({ key: "from", label: "Date from", type: "date", value: reportView.from }, { key: "to", label: "Date to", type: "date", value: reportView.to });
   const summary = () => Filters.summary([["Site", reportView.siteId && meta.filters.includes("siteId") ? siteName(Number(reportView.siteId)) : ""],
     ["Month", meta.filters.includes("month") ? reportView.month : ""], ["From", meta.filters.includes("from") ? reportView.from : ""], ["To", meta.filters.includes("from") ? reportView.to : ""]]);
-  const totalsText = () => (report.footer ? `Totals — ${report.columns.filter((c) => report.footer[c.key] !== undefined && c.kind).map((c) => `${c.label}: ${report.footer[c.key]}`).join("; ")}` : "");
+  const totalsText = () => (report.footer ? `Totals (all ${report.rows.length} report rows, not narrowed by search) — ${report.columns.filter((c) => report.footer[c.key] !== undefined && c.kind).map((c) => `${c.label}: ${report.footer[c.key]}`).join("; ")}` : "");
   return `<div class="page-head"><div><div class="page-eyebrow">// INSIGHT</div><div class="page-heading">Reports</div><div class="page-sub">${esc(meta.desc)} Scoped to your role and the Department selector.</div></div></div>
     ${Filters.barHtml("setReportFilter", fields)}
     ${(report.notes || []).length ? `<div class="attendance-summary">${report.notes.map((n) => `<span class="tag neutral">${esc(n)}</span>`).join("")}</div>` : ""}
@@ -187,6 +187,6 @@ function pageReports() {
       searchPlaceholder: "Search this report...",
       toolbarHtml: () => UI.exportMenu(() => Filters.matrixFor(`report-${meta.id}`, report.title, [summary(), totalsText()].filter(Boolean).join(" | "), currentUser().name), report.title),
       columns: report.columns.map((c) => ({ label: c.label, align: c.kind ? "right" : undefined, text: (r) => reportCell(c, r[c.key]) })),
-      footerHtml: () => (report.footer ? report.columns.map((c) => (report.footer[c.key] === undefined ? "" : `<strong>${esc(c.label)}</strong> ${esc(reportCell(c, report.footer[c.key]))}`)).filter(Boolean).join(" · ") : ""),
+      footerHtml: (shown) => (report.footer ? `<strong>${shown.length} of ${report.rows.length} rows</strong> · Totals (all rows) — ` + report.columns.map((c) => (report.footer[c.key] === undefined ? "" : `<strong>${esc(c.label)}</strong> ${esc(reportCell(c, report.footer[c.key]))}`)).filter(Boolean).join(" · ") : ""),
     })}`;
 }
