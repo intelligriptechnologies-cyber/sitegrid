@@ -92,7 +92,7 @@ function renderNav() {
       const badge = badgeForNav(item.id);
       el.innerHTML = `<span class="nav-icon">${item.icon}</span><span>${item.label}</span>` +
         (badge ? `<span class="nav-badge">${badge}</span>` : "");
-      el.onclick = () => { state.route = item.id; state.sidebarOpen = false; render(); };
+      el.onclick = () => { state.route = item.id; state.approvalEdit = null; state.sidebarOpen = false; render(); };
       nav.appendChild(el);
     });
   });
@@ -286,68 +286,6 @@ function showAddDepartmentModal() {
     showToast("Department created");
     render();
   };
-}
-
-/* ============================================================
-   PAGE: APPROVALS
-   ============================================================ */
-function pageApprovals() {
-  const user = currentUser();
-  const showAction = Approvals.showActionColumn(user);
-  const rows = Approvals.visibleRequests(user, state.deptId).slice().reverse();
-  return `
-    <div class="page-head">
-      <div>
-        <div class="page-eyebrow">// OPERATIONS</div>
-        <div class="page-heading">Approvals</div>
-        <div class="page-sub">Approval authority: Super Admin, Business Owner, or Department Head.</div>
-      </div>
-    </div>
-    ${!showAction ? `<div class="section-note">Viewing as ${esc(currentRole().name)} — approve/reject actions require Level 0-2 access. Table is read-only.</div>` : ""}
-    <div class="panel">
-      <div class="panel-body flush table-wrap">
-        <table>
-          <thead><tr><th>Request</th><th>Type</th><th>Site</th><th>Requested By</th><th>Request Date</th><th>Status</th><th>Decision</th>${showAction ? "<th>Action</th>" : ""}</tr></thead>
-          <tbody>
-            ${rows.map((a) => {
-              const site = byId(SITES, a.siteId);
-              const tag = a.status === "Approved" ? "ok" : a.status === "Rejected" ? "danger" : "warn";
-              return `<tr>
-                <td>${esc(a.title)}</td>
-                <td>${esc(a.type)}</td>
-                <td>${esc(site ? site.name : "—")}</td>
-                <td>${esc(userName(a.requestedBy))}</td>
-                <td class="text-mono">${esc(a.requestDate)}</td>
-                <td><span class="tag ${tag}">${esc(a.status)}</span></td>
-                <td class="dim">${a.decisionDate ? `${esc(userName(a.approvedBy))} · ${esc(a.decisionDate)}` : "—"}${a.rejectionReason ? `<div style="margin-top:4px;max-width:220px;">${esc(a.rejectionReason)}</div>` : ""}</td>
-                ${showAction ? `<td>${Approvals.canDecide(user, a) ? `
-                  <div style="display:flex;gap:6px;">
-                    <button class="btn teal small" onclick="decideApproval(${a.id}, 'approve')">Approve</button>
-                    <button class="btn danger small" onclick="decideApproval(${a.id}, 'reject')">Reject</button>
-                  </div>` : `<span class="faint text-mono">${a.status === "Approved" || a.status === "Rejected" ? "Closed" : "—"}</span>`}</td>` : ""}
-              </tr>`;
-            }).join("")}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  `;
-}
-
-/* Temporary until the Approvals page is rebuilt: approve/reject through Approvals.decide. */
-function decideApproval(reqId, action) {
-  const req = byId(APPROVAL_REQUESTS, reqId);
-  const finish = (remark) => {
-    const r = Approvals.decide(req, action, currentUser(), remark, nowStamp());
-    if (!r.ok) { showToast(r.error); return; }
-    const label = action === "approve" ? "approved" : "rejected";
-    const labour = req.labourId != null ? byId(LABOUR, req.labourId) : null;
-    AUDIT_LOG.push({ id: Store.nextId(AUDIT_LOG), timestamp: nowStamp(), userId: state.currentUserId, action: `Request ${label}`, details: `${req.title} ${label} by ${currentUser().name}${labour ? ` (${labour.name})` : ""}` });
-    showToast(`Request ${label}`);
-    render();
-  };
-  if (action === "reject") UI.confirm(`Reject "${req.title}"?`, finish, { title: "Reject request", yesLabel: "Reject", reason: { label: "Reason for rejection", required: true } });
-  else finish("");
 }
 
 /* ============================================================

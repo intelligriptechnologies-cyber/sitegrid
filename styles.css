@@ -731,3 +731,12 @@ tbody tr:last-child td{border-bottom:none;}
 .bio-add{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end;}
 .bio-add .field-error{grid-column:1/-1;}
 @media (max-width:700px){.bio-add{grid-template-columns:1fr;}}
+
+/* Approvals list */
+.approvals-host .ui-search{display:none;}
+.appr-q{min-width:150px;}
+.appr-chips{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 10px;}
+.appr-chip{background:var(--white);border:1px solid var(--line);border-radius:999px;padding:4px 12px;font-size:12px;cursor:pointer;color:var(--ink-dim);}
+.appr-chip b{color:var(--ink);margin-left:4px;}
+.appr-chip:hover,.appr-chip.active{border-color:var(--teal);color:var(--teal-strong);}
+.appr-clamp{max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;}

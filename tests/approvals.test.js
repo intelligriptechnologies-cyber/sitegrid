@@ -140,3 +140,18 @@ test("filter combos", () => {
   assert.strictEqual(f({}).length, 12);
   assert.strictEqual(f({ status: "", siteId: "", q: "" }).length, 12);
 });
+
+/* ---- approvals page helper ---- */
+const getPage = loadCtx(["data.js", "core/store.js", "core/ui.js", "core/auth.js", "core/mapping.js", "core/approvals.js", "pages/approvals.js"]);
+const PJ = (expr) => JSON.parse(getPage(`JSON.stringify(${expr})`));
+const PU = (id) => `USERS.find(u=>u.id===${id})`;
+
+test("applyApprovalFilters: visibility, filters, newest first", () => {
+  const all = PJ(`applyApprovalFilters(${PU(3)}, null, {}).map(r=>r.id)`);
+  assert.deepStrictEqual([...all].sort((a, b) => a - b), [1, 2, 5, 8, 9, 11, 12]);
+  const dates = PJ(`applyApprovalFilters(${PU(3)}, null, {}).map(r=>r.requestDate+"#"+r.id)`);
+  assert.deepStrictEqual(dates, [...dates].sort().reverse());
+  assert.deepStrictEqual(PJ(`applyApprovalFilters(${PU(7)}, null, {status:"Approved"}).map(r=>r.id)`).sort((a, b) => a - b), [1, 2, 5, 8, 11]);
+  assert.deepStrictEqual(PJ(`applyApprovalFilters(${PU(7)}, 2, {}).map(r=>r.id)`).sort((a, b) => a - b), [1, 2, 5, 8, 9, 11]);
+  assert.strictEqual(PJ(`applyApprovalFilters(${PU(7)}, null, {q:"zzzz-none"}).length`), 0);
+});
