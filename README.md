@@ -34,9 +34,9 @@ Then visit the printed local URL.
 | `styles.css` | Full monochrome/teal design system |
 | `data.js` | All seed data (departments, sites, labour, attendance, wages, expenses, tools, safety equipment, materials, users, approvals, audit log) |
 | `app.js` | Routing, rendering, role-based access simulation, interactive demo actions |
-| `core/auth.js` | User authentication, sign-in validation, OTP logic, role scope computation |
+| `core/auth.js` | User authentication, sign-in validation, OTP logic, role scope computation, and the `Session` (sessionStorage) helper |
 | `core/login.js` | Login screen rendering and interaction (user picker, mobile input, OTP) |
-| `core/store.js` | localStorage persistence layer; session state in sessionStorage |
+| `core/store.js` | localStorage persistence layer for the data tables |
 | `tests/phase1.test.js` | Phase 1 spec tests (run with `node tests/phase1.test.js`) |
 
 ## How to demo the role model
@@ -74,7 +74,7 @@ seeded/demoable.
 | # | BRD Requirement (Section) | Screen | What's demoed |
 |---|---|---|---|
 | 1 | User & role management (5.1, 6.1) | **Users & Roles** | 5 roles (Super Admin → Project Engineer), 9 users spanning all roles, one inactive user, role-hierarchy permission table rendered directly from the access matrix |
-| 2 | Department setup (6.2) | **Departments** | 3 departments (Civil, Electrical, Plumbing) each with a head, linked sites, and staff count; "New Department" form (Super Admin/Business Owner only — hidden for other roles) |
+| 2 | Department setup (6.2) | **Departments** | 3 departments (Civil, Electrical, Plumbing) each with a head, linked sites, and staff count; "New Department" form (Departments tab visible only to Super Admin and Business Owner) |
 | 3 | Site/project creation with GPS (6.3, 6.12) | **Sites & Projects** | 5 sites across Active / Paused / Completed states, each with numeric GPS lat/lng, area, client, address, timeline, assigned PM/PE; "New Site" form captures GPS as numeric fields |
 | 4 | Labour/manpower onboarding (6.4) | **Manpower** | 8 labour records covering Approved, Pending, and Rejected states, searchable by name/phone/Aadhaar/site; "Add Labour" form live-checks Aadhaar for duplicates |
 | 5 | Duplicate Aadhaar prevention (6.4) | **Manpower → Add Labour** | Pre-seeded rejected record (Labour ID 4, Ajay Nath) with reason "Duplicate Aadhaar number"; the Add Labour form blocks a new submission reusing an active Aadhaar and shows the same message live |
@@ -88,7 +88,7 @@ seeded/demoable.
 | 13 | Material tracking, client vs company (6.11) | **Materials** | 6 material entries split into Client Provided / Company Provided tables |
 | 14 | GPS capture for sites (6.12) | **Sites & Projects** | Every site card shows a numeric GPS chip; the New Site form requires lat/lng as numbers |
 | 15 | Dashboards & reports (6.13) | **Dashboard**, **Reports** | KPI tiles (active sites, manpower, pending approvals, today's attendance, wage outstanding, expense total), department summary, site-wise report table, labour approval report |
-| 16 | Role-based access control (5.2) | All screens | `ACCESS_MATRIX` in `data.js` drives every enable/disable state; disabled buttons/tables show an inline reason instead of silently hiding |
+| 16 | Role-based access control (5.2) | All screens | `ACCESS_MATRIX` in `data.js` drives every enable/disable state; Departments and Users & Roles are hidden from non-admin roles; other restricted actions are disabled |
 | 17 | Audit trail (9.2) | **Audit Log**, **Dashboard** | Every interactive demo action (add labour, approve/reject, mark attendance, mark wage paid, add expense, add site/department) appends a real audit entry, on top of 9 pre-seeded historical entries |
 | 18 | Active/inactive status (6.1, 6.4) | **Users & Roles**, **Manpower** | Inactive user (Bikash Jena) and inactive/pending labour records both shown with status indicators |
 | 19 | Site status lifecycle (6.3) | **Sites & Projects** | Active, Paused, and Completed sites all seeded to show every state |

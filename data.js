@@ -1,6 +1,6 @@
 /* ============================================================
    SEED DATA — Builder Workforce, Site, Attendance & Wage Mgmt
-   Demo data only. Held in memory; resets on page reload.
+   Demo data only. Seed data; copied into localStorage on first load (see core/store.js); use Reset demo data to restore.
    ID convention: plain numeric IDs. Text fields are plain
    words/names. No invented alphanumeric codes (e.g. no "S-001")
    unless the real-world field itself is alphanumeric.

@@ -1,6 +1,6 @@
 /* ============================================================
    SITEGRID — demo application logic (vanilla JS, no build step)
-   In-memory state seeded from data.js. All writes are session-only.
+   State seeded from data.js and persisted to localStorage via core/store.js.
    ============================================================ */
 
 const state = {
@@ -18,6 +18,7 @@ const siteName = (id) => (byId(SITES, id) ? byId(SITES, id).name : "—");
 const labourName = (id) => (byId(LABOUR, id) ? byId(LABOUR, id).name : "—");
 const roleName = (id) => (byId(ROLES, id) ? byId(ROLES, id).name : "—");
 const clientName = (id) => (byId(CLIENTS, id) ? byId(CLIENTS, id).name : "—");
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const currency = (n) => "Rs " + Number(n || 0).toLocaleString("en-IN");
 
 function currentUser() { return byId(USERS, state.currentUserId); }
@@ -101,11 +102,22 @@ function renderDeptSwitch() {
   const depts = Auth.allowedDepartments(u);
   const all = Auth.isAllDeptRole(u);
   sel.innerHTML = (all ? `<option value="">All Departments</option>` : "") +
-    depts.map((d) => `<option value="${d.id}" ${d.id === state.deptId ? "selected" : ""}>${d.name}</option>`).join("");
+    depts.map((d) => `<option value="${d.id}" ${d.id === state.deptId ? "selected" : ""}>${esc(d.name)}</option>`).join("");
   sel.value = state.deptId == null ? "" : String(state.deptId);
+  if (sel.selectedIndex === -1) {
+    state.deptId = Auth.defaultDept(u);
+    sel.value = state.deptId == null ? "" : String(state.deptId);
+  }
   sel.disabled = !all && depts.length <= 1;
   sel.onchange = (e) => { state.deptId = e.target.value === "" ? null : Number(e.target.value); Session.save(state.currentUserId, state.deptId); render(); };
   document.getElementById("userChip").textContent = `${u.name} · ${roleName(u.roleId)}`;
+}
+
+let storageWarned = false;
+function warnStorage(ok) {
+  if (ok || storageWarned) return;
+  storageWarned = true;
+  showToast("Storage unavailable — changes are session-only");
 }
 
 function showToast(msg) {
@@ -171,7 +183,7 @@ function pageDashboard() {
           <thead><tr><th>Department</th><th>Head</th><th>Sites</th><th>Manpower</th></tr></thead>
           <tbody>
             ${deptSummary.map((r) => `<tr>
-              <td>${r.d.name}</td>
+              <td>${esc(r.d.name)}</td>
               <td>${userName(r.d.headUserId)}</td>
               <td>${r.siteCount}</td>
               <td>${r.labourCount}</td>
@@ -190,8 +202,8 @@ function pageDashboard() {
             ${AUDIT_LOG.slice().reverse().slice(0, 5).map((a) => `<tr>
               <td class="text-mono">${a.timestamp}</td>
               <td>${userName(a.userId)}</td>
-              <td><span class="tag neutral">${a.action}</span></td>
-              <td class="dim">${a.details}</td>
+              <td><span class="tag neutral">${esc(a.action)}</span></td>
+              <td class="dim">${esc(a.details)}</td>
             </tr>`).join("")}
           </tbody>
         </table>
@@ -216,14 +228,14 @@ function pageDepartments() {
     </div>
     ${!canEdit ? `<div class="section-note">Viewing as ${currentRole().name} — department creation/editing requires Super Admin or Business Owner.</div>` : ""}
     <div class="grid cols-3">
-      ${DEPARTMENTS.map((d) => {
+      ${/* intentionally lists all departments regardless of the Department dropdown (admin management page) */ DEPARTMENTS.map((d) => {
         const sites = SITES.filter((s) => s.departmentId === d.id);
         const labour = LABOUR.filter((l) => sites.some((s) => s.id === l.siteId));
         const users = USERS.filter((u) => u.departmentIds.includes(d.id));
         return `<div class="site-card">
           <div class="site-card-head">
             <div>
-              <div class="site-name">${d.name}</div>
+              <div class="site-name">${esc(d.name)}</div>
               <div class="site-meta"><span class="badge-dot ${d.active ? "active" : "inactive"}"></span>${d.active ? "Active" : "Inactive"}</div>
             </div>
           </div>
@@ -247,7 +259,7 @@ function showAddDepartmentModal() {
         <select name="head">${USERS.filter((u) => u.roleId <= 2 && u.active).map((u) => `<option value="${u.id}">${u.name}</option>`).join("")}</select>
       </div>
       <div class="field full" style="margin-top:4px;">
-        <div class="section-note">Demo only — new department is added to in-memory state and will reset on reload.</div>
+        <div class="section-note">New department is saved in this browser (localStorage). Use Reset demo data on the login screen to restore the seed.</div>
       </div>
       <div class="form-actions full" style="grid-column:1/-1;">
         <button type="button" class="btn secondary" onclick="closeModal()">Cancel</button>
@@ -366,7 +378,7 @@ function showAddSiteModal() {
   openModal("New Site / Project", `
     <form id="siteForm" class="form-grid">
       <div class="field full"><label>Site Name</label><input required name="name" placeholder="e.g. Riverside Residency Tower 3" /></div>
-      <div class="field"><label>Department</label><select name="dept">${DEPARTMENTS.map((d) => `<option value="${d.id}">${d.name}</option>`).join("")}</select></div>
+      <div class="field"><label>Department</label><select name="dept">${DEPARTMENTS.map((d) => `<option value="${d.id}">${esc(d.name)}</option>`).join("")}</select></div>
       <div class="field"><label>Project Type</label><select name="type"><option>Residential</option><option>Commercial</option></select></div>
       <div class="field"><label>Area (sqft)</label><input required type="number" name="area" placeholder="30000" /></div>
       <div class="field"><label>Client</label><select name="client">${CLIENTS.map((c) => `<option value="${c.id}">${c.name}</option>`).join("")}</select></div>
@@ -917,8 +929,8 @@ function pageAudit() {
             ${AUDIT_LOG.slice().reverse().map((a) => `<tr>
               <td class="text-mono">${a.timestamp}</td>
               <td>${userName(a.userId)}</td>
-              <td><span class="tag neutral">${a.action}</span></td>
-              <td class="dim">${a.details}</td>
+              <td><span class="tag neutral">${esc(a.action)}</span></td>
+              <td class="dim">${esc(a.details)}</td>
             </tr>`).join("")}
           </tbody>
         </table>
@@ -968,7 +980,6 @@ const PAGES = {
 };
 
 function render() {
-  Store.save();
   if (!navVisible(state.route)) state.route = "dashboard";
   renderNav();
   renderDeptSwitch();
@@ -976,6 +987,7 @@ function render() {
   document.getElementById("pageTitle").textContent = page.title;
   document.getElementById("content").innerHTML = page.render();
   document.getElementById("sidebar").classList.toggle("open", state.sidebarOpen);
+  warnStorage(Store.save());
 }
 
 function startSession(user, deptId) {
@@ -999,7 +1011,7 @@ document.getElementById("menuToggle").addEventListener("click", () => {
 document.getElementById("logoutBtn").addEventListener("click", logout);
 
 function boot() {
-  Store.load();
+  const loaded = Store.load();
   const s = Session.load();
   const user = s && byId(USERS, s.userId);
   if (Auth.canSignIn(user)) {
@@ -1007,5 +1019,6 @@ function boot() {
     hideLogin(); startSession(user, ok ? s.deptId : undefined);
   }
   else showLogin((u) => startSession(u));
+  warnStorage(loaded);
 }
 boot();

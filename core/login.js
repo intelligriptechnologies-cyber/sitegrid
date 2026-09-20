@@ -9,9 +9,9 @@ function showLogin(onSuccess) {
       <div class="login-sub">Sign in with your registered mobile number</div>
       <label class="login-label" for="loginUser">Select user (demo)</label>
       <select id="loginUser">${USERS.map((u) =>
-        `<option value="${u.id}">${u.name} — ${roleName(u.roleId)}${u.active ? "" : " (Inactive)"}</option>`).join("")}</select>
+        `<option value="${u.id}">${esc(u.name)} — ${roleName(u.roleId)}${u.active ? "" : " (Inactive)"}</option>`).join("")}</select>
       <label class="login-label" for="loginMobile">Mobile number</label>
-      <input id="loginMobile" type="tel" inputmode="numeric" maxlength="14" autocomplete="off" />
+      <input id="loginMobile" type="tel" inputmode="numeric" maxlength="16" autocomplete="off" />
       <div id="otpBlock" hidden>
         <label class="login-label" for="loginOtp">OTP <span class="dim">(demo OTP: ${DEMO_OTP})</span></label>
         <input id="loginOtp" type="text" inputmode="numeric" maxlength="4" autocomplete="off" />
@@ -26,7 +26,6 @@ function showLogin(onSuccess) {
   let otpSent = false;
   const resetStep = () => { otpSent = false; $("otpBlock").hidden = true; $("loginOtp").value = ""; $("loginBtn").textContent = "Send OTP"; err(""); };
 
-  fillMobile();
   $("loginUser").onchange = () => { fillMobile(); resetStep(); };
   $("loginMobile").oninput = resetStep;
   $("loginReset").onclick = (e) => { e.preventDefault(); Store.reset(); };
@@ -43,6 +42,7 @@ function showLogin(onSuccess) {
     hideLogin(); onSuccess(r.user);
   };
   root.onkeydown = (e) => { if (e.key === "Enter") $("loginBtn").click(); };
+  fillMobile();
 }
 function hideLogin() {
   document.getElementById("login").hidden = true;

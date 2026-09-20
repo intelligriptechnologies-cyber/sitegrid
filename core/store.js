@@ -12,7 +12,11 @@ const Store = {
     for (const [name, arr] of Object.entries(this.tables())) {
       const raw = this.storage.getItem(this.PREFIX + name);
       if (raw === null) continue;
-      try { const rows = JSON.parse(raw); arr.length = 0; arr.push(...rows); } catch (e) { /* keep seed */ }
+      try {
+        const rows = JSON.parse(raw);
+        if (!Array.isArray(rows)) continue;
+        arr.length = 0; arr.push(...rows);
+      } catch (e) { /* keep seed */ }
     }
     return true;
   },

@@ -11,7 +11,7 @@ const Auth = {
   isAllDeptRole(user) { return user.roleId === 0 || user.roleId === 1; },
   allowedDepartments(user) {
     const active = DEPARTMENTS.filter((d) => d.active);
-    return this.isAllDeptRole(user) ? active : active.filter((d) => user.departmentIds.includes(d.id));
+    return this.isAllDeptRole(user) ? active : active.filter((d) => (user.departmentIds || []).includes(d.id));
   },
   defaultDept(user) {
     if (this.isAllDeptRole(user)) return null;
@@ -33,8 +33,9 @@ const Auth = {
   scopeSiteIds(user, deptId) {
     let sites;
     if (this.isAllDeptRole(user)) sites = SITES;
-    else if (user.roleId === 2) sites = SITES.filter((s) => user.departmentIds.includes(s.departmentId));
-    else sites = SITES.filter((s) => user.siteIds.includes(s.id));
+    // Department Heads see every site of their departments; siteIds is ignored for this role.
+    else if (user.roleId === 2) sites = SITES.filter((s) => (user.departmentIds || []).includes(s.departmentId));
+    else sites = SITES.filter((s) => (user.siteIds || []).includes(s.id));
     if (deptId != null) sites = sites.filter((s) => s.departmentId === deptId);
     return sites.map((s) => s.id);
   },
