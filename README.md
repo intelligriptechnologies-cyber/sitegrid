@@ -2,9 +2,9 @@
 
 A pure-client, no-backend demo of the BRD in `brd.md`. It is a single-page
 app built with plain HTML, CSS, and JavaScript (no frameworks, no build
-step, no server). All data lives in memory (`data.js`) and is seeded on
-load; edits made during the demo (approvals, attendance, expenses, etc.)
-persist only for the current browser session and reset on refresh.
+step, no server). All data is seeded on load (`data.js`); edits made during
+the demo (approvals, attendance, expenses, etc.) persist in the browser's
+localStorage across sessions until explicitly reset.
 
 Visual direction: futuristic, minimalistic, monochromatic — ink/white
 base with a single teal accent, monospace labels, no gradients or
@@ -34,29 +34,35 @@ Then visit the printed local URL.
 | `styles.css` | Full monochrome/teal design system |
 | `data.js` | All seed data (departments, sites, labour, attendance, wages, expenses, tools, safety equipment, materials, users, approvals, audit log) |
 | `app.js` | Routing, rendering, role-based access simulation, interactive demo actions |
+| `core/auth.js` | User authentication, sign-in validation, OTP logic, role scope computation |
+| `core/login.js` | Login screen rendering and interaction (user picker, mobile input, OTP) |
+| `core/store.js` | localStorage persistence layer; session state in sessionStorage |
+| `tests/phase1.test.js` | Phase 1 spec tests (run with `node tests/phase1.test.js`) |
 
 ## How to demo the role model
 
-Use the **VIEW AS** dropdown (top right) to switch identity. The UI
-re-renders with:
-- Different **visibility scope** (which sites/departments are visible)
-- Different **enabled/disabled actions** (buttons disable with an
-  inline explanation when the current role lacks permission)
+Sign in via the login screen:
 
-Suggested walkthrough order:
-1. **Sunita Patnaik — Business Owner** (default view): full visibility,
-   see the Dashboard, Department Summary, and every module unrestricted.
-2. **Debasis Nayak — Department Head (Civil)**: notice Sites, Manpower,
-   Attendance, Wages, Reports now scope down to Civil Construction sites
-   only (Tower 1, Tower 2).
-3. **Manoj Sethi — Project Manager**: scope narrows further to assigned
-   sites only; "Add/Edit Departments" and "Add/Edit Users" are disabled.
-4. **Kiran Sahu — Project Engineer**: same site scope as their PM, wage
-   payment update button is disabled (Project Engineers get view/limited
-   update per the BRD access table).
-5. **Bikash Jena — Project Engineer (Inactive)**: shown with an
-   "(Inactive)" tag in the dropdown and in Users & Roles, to demonstrate
-   the active/inactive user state.
+1. **Choose a user** from the "Select user (demo)" dropdown
+2. **Mobile number** is prefilled and editable
+3. Tap **Send OTP** (demo OTP: `1111`)
+4. Enter OTP and tap **Verify & Sign in**
+
+Demo account details:
+- **9 users** with demo mobiles `9876500001`–`9876500009`
+- **`9876500009` (Bikash Jena) is inactive**
+- Unregistered or inactive numbers show "Contact Admin to configure access"
+
+Department access:
+- **Super Admin & Business Owner**: see "All Departments" + each department in top bar dropdown (switchable)
+- **Department Head & Project roles**: fixed to their assigned department(s); Kiran Sahu maps to 2 departments and can switch between them
+- **Sidebar tabs**: "Departments" and "Users & Roles" visible only to Super Admin and Business Owner
+
+Data & session:
+- **Persist in localStorage**: edits survive browser refresh
+- **Session login** stored in sessionStorage
+- **"Reset demo data"** link on login screen clears all local data and reloads
+- To log out and reach the reset link, use the **Logout** button (top right)
 
 ## Scenario coverage map
 
@@ -68,7 +74,7 @@ seeded/demoable.
 | # | BRD Requirement (Section) | Screen | What's demoed |
 |---|---|---|---|
 | 1 | User & role management (5.1, 6.1) | **Users & Roles** | 5 roles (Super Admin → Project Engineer), 9 users spanning all roles, one inactive user, role-hierarchy permission table rendered directly from the access matrix |
-| 2 | Department setup (6.2) | **Departments** | 3 departments (Civil, Electrical, Plumbing) each with a head, linked sites, and staff count; "New Department" form (Super Admin/Business Owner only — disabled otherwise with reason shown) |
+| 2 | Department setup (6.2) | **Departments** | 3 departments (Civil, Electrical, Plumbing) each with a head, linked sites, and staff count; "New Department" form (Super Admin/Business Owner only — hidden for other roles) |
 | 3 | Site/project creation with GPS (6.3, 6.12) | **Sites & Projects** | 5 sites across Active / Paused / Completed states, each with numeric GPS lat/lng, area, client, address, timeline, assigned PM/PE; "New Site" form captures GPS as numeric fields |
 | 4 | Labour/manpower onboarding (6.4) | **Manpower** | 8 labour records covering Approved, Pending, and Rejected states, searchable by name/phone/Aadhaar/site; "Add Labour" form live-checks Aadhaar for duplicates |
 | 5 | Duplicate Aadhaar prevention (6.4) | **Manpower → Add Labour** | Pre-seeded rejected record (Labour ID 4, Ajay Nath) with reason "Duplicate Aadhaar number"; the Add Labour form blocks a new submission reusing an active Aadhaar and shows the same message live |
@@ -105,10 +111,9 @@ seeded/demoable.
 
 ## Known limitations (by design, since this is a demo)
 
-- No backend, no persistence beyond the browser session — refresh resets
-  all data to the seed set in `data.js`.
-- No real authentication — the role switcher simulates "logged in as"
-  for demo purposes only.
+- No backend server — all data and logic run client-side in the browser.
+- Authentication is via a demo login screen with hardcoded OTP (`1111`);
+  not suitable for production.
 - Wage payable figures are pre-computed in the seed data rather than
   derived live from every attendance row, to keep the dataset legible;
   the "Mark Paid" action still updates state live to demonstrate the
